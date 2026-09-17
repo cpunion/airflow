@@ -57,6 +57,26 @@ impl PairedDeviceInfo {
     }
 }
 
+/// Granular battery levels for wireless headphones (e.g. Left/Right earbuds and Case).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HeadphoneBattery {
+    pub left: Option<u8>,
+    pub right: Option<u8>,
+    pub case_level: Option<u8>,
+    pub is_charging: bool,
+}
+
+impl HeadphoneBattery {
+    pub fn primary_percentage(&self) -> u8 {
+        match (self.left, self.right) {
+            (Some(l), Some(r)) => (l + r) / 2,
+            (Some(l), None) => l,
+            (None, Some(r)) => r,
+            (None, None) => self.case_level.unwrap_or(0),
+        }
+    }
+}
+
 /// Current state of the handoff arbitration engine.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "details")]
