@@ -58,17 +58,26 @@ jobs:
       - name: Configure Windows SDK Module Maps
         shell: pwsh
         run: |
-          $source = "C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0"
-          $target = "C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0"
-          if (Test-Path $source) {
-            Get-ChildItem -Path $source -Recurse -Filter "*modulemap" | ForEach-Object {
-              $rel = $_.FullName.Substring($source.Length)
-              $dest = Join-Path $target $rel
-              $destDir = Split-Path $dest
-              if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force }
-              Copy-Item $_.FullName $dest -Force
-              Write-Host "Copied $($_.FullName) -> $dest"
-            }
+          $toolchainRoot = Split-Path (Split-Path (Split-Path $env:SDKROOT))
+          Write-Host "Searching for modulemaps in $toolchainRoot..."
+          $maps = Get-ChildItem -Path $toolchainRoot -Recurse -Filter "*modulemap"
+          $maps | ForEach-Object { Write-Host "Found: $($_.FullName)" }
+          
+          $ucrtSrc = ($maps | Where-Object { $_.Name -eq "ucrt.modulemap" } | Select-Object -First 1).FullName
+          $winsdkSrc = ($maps | Where-Object { $_.Name -eq "winsdk.modulemap" } | Select-Object -First 1).FullName
+          
+          $ucrtDest = "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\ucrt\module.modulemap"
+          $umDest = "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\um\module.modulemap"
+          $sharedDest = "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\shared\module.modulemap"
+          
+          if ($ucrtSrc) {
+            Copy-Item $ucrtSrc $ucrtDest -Force
+            Write-Host "Copied $ucrtSrc -> $ucrtDest"
+          }
+          if ($winsdkSrc) {
+            Copy-Item $winsdkSrc $umDest -Force
+            Copy-Item $winsdkSrc $sharedDest -Force
+            Write-Host "Copied $winsdkSrc -> $umDest & $sharedDest"
           }
 
       - name: Build AirFlow (Release)
