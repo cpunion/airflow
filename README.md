@@ -60,7 +60,7 @@ swift build
 
 ### Run
 ```bash
-swift run ShokzHandoff
+swift run AirFlow
 ```
 
 ---
@@ -76,3 +76,12 @@ swift run ShokzHandoff
 - [ ] Linux daemon implementation (BlueZ + PipeWire + MPRIS) and Apple Accessory Protocol (AAP) driver for AirPods.
 - [ ] Windows daemon implementation (WASAPI + GSMTC WinRT) and modern flyout tray UI.
 - [ ] Single-point headphone dynamic reconnect emulation.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please adhere to the following guidelines:
+1. All contributions, bug fixes, and feature additions must be submitted via **Pull Requests (PRs)** targeting `main`. Direct pushes to `main` are disabled.
+2. Ensure all commit messages, code comments, and documentation are written in **English**.
+3. All new logic and state machine changes must include unit tests verifying behavior across platforms. Run `swift test` before submitting your PR.

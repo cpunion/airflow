@@ -16,23 +16,26 @@
    - The engine must NEVER send control packets or pause commands to unverified or arbitrary BLE/Bluetooth devices. Target mobile devices must be explicitly confirmed and saved in the user's whitelist.
 4. **Anti-Ping-Pong Protection**:
    - An intentional arbitration cooldown (default `1.5s`) must be enforced whenever a pause is dispatched to a peer. Incoming pause notifications from that peer during the cooldown must be ignored to prevent circular playback deadlocks.
+5. **Pull Request (PR) Contribution Workflow**:
+   - All subsequent updates, features, bugfixes, and documentation changes MUST be developed on dedicated feature/bugfix branches and submitted via Pull Requests (`gh pr create`). Direct pushes to `main` are strictly forbidden.
 
 ---
 
 ## 2. Directory Structure & Layering
 
 ```
-shokz/
+AirFlow/
 ├── docs/
 │   └── DESIGN.md                 # Primary architecture & protocol specification
 ├── AGENTS.md                     # Agent guide (this document)
 ├── README.md                     # Public project overview & quickstart
 ├── Package.swift                 # SPM manifest (Swift 6.0+)
 ├── Sources/
-│   └── ShokzHandoff/
-│       ├── main.swift            # Entry point & CLI/Menubar bootstrap
+│   └── AirFlow/
+│       ├── AirFlowApp.swift      # Entry point & CLI/Menubar bootstrap
 │       ├── Core/
 │       │   ├── ArbitrationEngine.swift     # State machine & mutual exclusion logic
+│       │   ├── Config.swift                # Dynamic .env configuration loader
 │       │   ├── DeviceWhitelistManager.swift # Device ID persistence & binding
 │       │   └── Models.swift                # Shared models (AudioDevice, PeerDevice, etc.)
 │       ├── Drivers/
@@ -49,9 +52,10 @@ shokz/
 │       │   ├── Linux/                      # BlueZ D-Bus, PipeWire, and MPRIS adapters
 │       │   └── Windows/                    # WASAPI & WinRT GSMTC adapters
 │       └── UI/
-│           └── MenubarManager.swift        # macOS NSStatusItem & notification handler
+│           ├── MenubarManager.swift        # macOS NSStatusItem manager
+│           └── StatusPopoverView.swift     # SwiftUI battery & device popover
 └── Tests/
-    └── ShokzHandoffTests/
+    └── AirFlowTests/
 ```
 
 ---
@@ -102,7 +106,7 @@ Dynamic loading via `dlopen("/System/Library/PrivateFrameworks/MediaRemote.frame
 swift build
 
 # Run executable in development mode
-swift run ShokzHandoff
+swift run AirFlow
 
 # Run unit tests
 swift test
