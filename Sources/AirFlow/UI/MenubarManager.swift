@@ -57,7 +57,15 @@ public final class MenubarManager: NSObject {
     
     private func bindViewModel() {
         // Initial state
-        viewModel.boundPeer = whitelistManager.getBoundDevice()
+        let pairedPhones = MacOSBluetoothDeviceHelper.listPairedPhones()
+        viewModel.availablePeers = pairedPhones
+        
+        var bound = whitelistManager.getBoundDevice()
+        if bound == nil, let first = pairedPhones.first {
+            whitelistManager.bindDevice(first)
+            bound = first
+        }
+        viewModel.boundPeer = bound
         viewModel.currentAudioDevice = audioMonitor.getCurrentDefaultDevice()
         viewModel.availableAudioDevices = audioMonitor.listOutputDevices()
         viewModel.battery = driver.getBatteryStatus()
@@ -84,6 +92,10 @@ public final class MenubarManager: NSObject {
         }
         
         // Wire UI callbacks
+        viewModel.onSelectPeer = { [weak self] peer in
+            self?.whitelistManager.bindDevice(peer)
+        }
+        
         viewModel.onToggleHandoff = { [weak self] enabled in
             self?.engine.setHandoffEnabled(enabled)
         }
@@ -186,6 +198,7 @@ public final class MenubarManager: NSObject {
             // Refresh dynamic state on popover open
             viewModel.availableAudioDevices = audioMonitor.listOutputDevices()
             viewModel.currentAudioDevice = audioMonitor.getCurrentDefaultDevice()
+            viewModel.availablePeers = MacOSBluetoothDeviceHelper.listPairedPhones()
             viewModel.boundPeer = whitelistManager.getBoundDevice()
             viewModel.isLaunchAtLoginEnabled = LaunchAtLoginHelper.shared.isEnabled
             viewModel.bleSubscribersCount = BleRemoteServer.shared.subscribedCentrals.count

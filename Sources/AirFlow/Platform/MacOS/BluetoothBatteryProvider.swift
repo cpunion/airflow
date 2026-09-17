@@ -42,10 +42,48 @@ public enum MacOSBluetoothBatteryProvider {
         return nil
     }
 }
+
+/// Helper that enumerates paired candidate mobile phones (excluding headphones and speakers)
+public enum MacOSBluetoothDeviceHelper {
+    public static func listPairedPhones() -> [PairedDeviceInfo] {
+        guard let devices = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { return [] }
+        var phones: [PairedDeviceInfo] = []
+        for dev in devices {
+            let name = dev.nameOrAddress ?? ""
+            let lower = name.lowercased()
+            // Exclude audio output devices, microphones, speakers, headphones
+            if lower.contains("shokz") || lower.contains("opendots") || lower.contains("airpods") ||
+               lower.contains("speaker") || lower.contains("扬声器") || lower.contains("mic") ||
+               lower.contains("headphone") || lower.contains("openrun") || lower.contains("openfit") ||
+               lower.contains("wh-1000") || lower.contains("wf-1000") || lower.contains("bose") ||
+               lower.contains("beats") || lower.contains("dji") {
+                continue
+            }
+            let addr = dev.addressString ?? UUID().uuidString
+            // Avoid duplicates
+            if !phones.contains(where: { $0.id == addr || $0.name == name }) {
+                phones.append(PairedDeviceInfo(
+                    id: addr,
+                    name: name,
+                    address: dev.addressString,
+                    isConnected: dev.isConnected()
+                ))
+            }
+        }
+        return phones
+    }
+}
 #else
 public enum MacOSBluetoothBatteryProvider {
     public static func queryBattery(for deviceName: String? = nil) -> HeadphoneBattery? {
         return nil
     }
 }
+
+public enum MacOSBluetoothDeviceHelper {
+    public static func listPairedPhones() -> [PairedDeviceInfo] {
+        return []
+    }
+}
 #endif
+

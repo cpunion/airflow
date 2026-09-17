@@ -59,6 +59,7 @@ public final class PeerCommandDispatcher: @unchecked Sendable {
             Task { [driver] in
                 _ = try? await driver.sendVendorPauseCommand()
             }
+            BleRemoteServer.shared.sendPause()
             return .success(strategy: .headphoneGatt)
             
         case .bleRemote, .bleHidMediaKey:

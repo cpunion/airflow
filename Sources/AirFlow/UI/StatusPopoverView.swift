@@ -7,6 +7,7 @@ public final class StatusPopoverViewModel: ObservableObject {
     @Published public var engineState: EngineState = .idle
     @Published public var battery: HeadphoneBattery? = nil
     @Published public var boundPeer: PairedDeviceInfo?
+    @Published public var availablePeers: [PairedDeviceInfo] = []
     @Published public var availableAudioDevices: [AudioDevice] = []
     @Published public var currentAudioDevice: AudioDevice?
     @Published public var isHandoffEnabled: Bool = true
@@ -21,6 +22,7 @@ public final class StatusPopoverViewModel: ObservableObject {
         return currentAudioDevice?.isTws ?? true
     }
     
+    public var onSelectPeer: ((PairedDeviceInfo) -> Void)?
     public var onToggleHandoff: ((Bool) -> Void)?
     public var onToggleAirPodsBypass: ((Bool) -> Void)?
     public var onSelectDevice: ((AudioDevice) -> Void)?
@@ -257,36 +259,79 @@ public struct StatusPopoverView: View {
                 }
             }
             
+            // Target Phone Selection Dropdown
             HStack {
-                if let peer = viewModel.boundPeer {
-                    Text(peer.name)
-                        .font(.footnote)
-                        .foregroundColor(.primary)
-                } else {
-                    Text("No target phone paired in whitelist.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                Text("BLE: \(viewModel.bleSubscribersCount) linked")
+                Text("Target:")
                     .font(.caption2)
                     .foregroundColor(.secondary)
+                
+                Picker("", selection: Binding(
+                    get: { viewModel.boundPeer?.id ?? "" },
+                    set: { newId in
+                        if let match = viewModel.availablePeers.first(where: { $0.id == newId }) {
+                            viewModel.boundPeer = match
+                            viewModel.onSelectPeer?(match)
+                        }
+                    }
+                )) {
+                    if viewModel.availablePeers.isEmpty {
+                        Text(viewModel.boundPeer?.name ?? "No paired phones found").tag(viewModel.boundPeer?.id ?? "")
+                    } else {
+                        ForEach(viewModel.availablePeers) { peer in
+                            Text(peer.name).tag(peer.id)
+                        }
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.small)
+                
+                Spacer()
+                
+                Text("BLE: \(viewModel.bleSubscribersCount) linked")
+                    .font(.caption2)
+                    .foregroundColor(viewModel.bleSubscribersCount > 0 ? .green : .secondary)
             }
             
             // Dispatch strategy picker
-            Picker("Dispatch Via", selection: Binding(
-                get: { viewModel.activeStrategy },
-                set: { newStrat in
-                    viewModel.activeStrategy = newStrat
-                    viewModel.onStrategyChanged?(newStrat)
+            HStack {
+                Text("Dispatch Via:")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                
+                Picker("", selection: Binding(
+                    get: { viewModel.activeStrategy },
+                    set: { newStrat in
+                        viewModel.activeStrategy = newStrat
+                        viewModel.onStrategyChanged?(newStrat)
+                    }
+                )) {
+                    ForEach(DispatchStrategy.allCases, id: \.self) { strat in
+                        Text(strat.rawValue).tag(strat)
+                    }
                 }
-            )) {
-                ForEach(DispatchStrategy.allCases, id: \.self) { strat in
-                    Text(strat.rawValue).tag(strat)
-                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.small)
             }
-            .pickerStyle(.menu)
-            .controlSize(.small)
+            
+            Text(strategyHint(for: viewModel.activeStrategy))
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+    
+    private func strategyHint(for strategy: DispatchStrategy) -> String {
+        switch strategy {
+        case .headphoneGatt:
+            return "Relays pause command through headphone multipoint audio firmware."
+        case .bleRemote:
+            return "Phone connects to 'AirFlow Remote' BLE service to receive instant pause."
+        case .bleHidMediaKey:
+            return "Emulates Bluetooth media remote key (Pause) to paired phone."
+        case .localNetwork:
+            return "Sends local network webhook to phone / iOS Shortcut automation."
         }
     }
     
