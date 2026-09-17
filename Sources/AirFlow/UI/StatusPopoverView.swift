@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 public final class StatusPopoverViewModel: ObservableObject {
     @Published public var engineState: EngineState = .idle
-    @Published public var battery: HeadphoneBattery? = HeadphoneBattery(left: 80, right: 80, caseLevel: 90)
+    @Published public var battery: HeadphoneBattery? = nil
     @Published public var boundPeer: PairedDeviceInfo?
     @Published public var availableAudioDevices: [AudioDevice] = []
     @Published public var currentAudioDevice: AudioDevice?
@@ -154,11 +154,15 @@ public struct StatusPopoverView: View {
             
             if let battery = viewModel.battery {
                 HStack(spacing: 8) {
-                    if let l = battery.left {
-                        batteryItem(label: "Left", level: l, icon: "earbuds")
-                    }
-                    if let r = battery.right {
-                        batteryItem(label: "Right", level: r, icon: "earbuds")
+                    if let l = battery.left, let r = battery.right, l == r {
+                        batteryItem(label: "Battery", level: l, icon: "headphones")
+                    } else {
+                        if let l = battery.left {
+                            batteryItem(label: "Left", level: l, icon: "earbuds")
+                        }
+                        if let r = battery.right {
+                            batteryItem(label: "Right", level: r, icon: "earbuds")
+                        }
                     }
                     if let c = battery.caseLevel {
                         batteryItem(label: "Case", level: c, icon: "case.fill")

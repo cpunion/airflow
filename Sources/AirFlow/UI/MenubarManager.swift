@@ -12,6 +12,7 @@ public final class MenubarManager: NSObject {
     private let audioMonitor: AudioDeviceMonitorProtocol
     private let driver: HeadphoneDriver
     private let whitelistManager: DeviceWhitelistManager
+    private var batteryTimer: Timer?
     
     public init(
         engine: ArbitrationEngine,
@@ -29,6 +30,12 @@ public final class MenubarManager: NSObject {
         setupStatusItem()
         setupPopover()
         bindViewModel()
+        startBatteryPolling()
+    }
+    
+    public func stop() {
+        batteryTimer?.invalidate()
+        batteryTimer = nil
     }
     
     private func setupStatusItem() {
@@ -54,6 +61,7 @@ public final class MenubarManager: NSObject {
         viewModel.currentAudioDevice = audioMonitor.getCurrentDefaultDevice()
         viewModel.availableAudioDevices = audioMonitor.listOutputDevices()
         viewModel.battery = driver.getBatteryStatus()
+        updateBatteryTitle(battery: viewModel.battery)
         viewModel.activeStrategy = engine.dispatcher.activeStrategy
         viewModel.cooldownSeconds = Double(engine.cooldownMs) / 1000.0
         viewModel.isLaunchAtLoginEnabled = LaunchAtLoginHelper.shared.isEnabled
@@ -139,10 +147,26 @@ public final class MenubarManager: NSObject {
         }
     }
     
-    private func updateBatteryTitle(battery: HeadphoneBattery) {
+    private func startBatteryPolling() {
+        batteryTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                if let battery = self.driver.getBatteryStatus() {
+                    self.viewModel.battery = battery
+                    self.updateBatteryTitle(battery: battery)
+                }
+            }
+        }
+    }
+    
+    private func updateBatteryTitle(battery: HeadphoneBattery?) {
         guard let button = statusItem.button else { return }
-        let pct = battery.primaryPercentage
-        button.title = " \(pct)%"
+        if let battery = battery {
+            let pct = battery.primaryPercentage
+            button.title = " \(pct)%"
+        } else {
+            button.title = ""
+        }
     }
     
     @objc private func togglePopover() {
@@ -165,6 +189,10 @@ public final class MenubarManager: NSObject {
             viewModel.boundPeer = whitelistManager.getBoundDevice()
             viewModel.isLaunchAtLoginEnabled = LaunchAtLoginHelper.shared.isEnabled
             viewModel.bleSubscribersCount = BleRemoteServer.shared.subscribedCentrals.count
+            if let battery = driver.getBatteryStatus() {
+                viewModel.battery = battery
+                updateBatteryTitle(battery: battery)
+            }
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
     }
