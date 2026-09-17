@@ -18,6 +18,7 @@ public final class ArbitrationEngine: @unchecked Sendable {
     private let config: AppConfig
     
     private var isHandoffEnabled: Bool = true
+    private var isAirPodsBypassEnabled: Bool = true
     private var cooldownTimer: Timer?
     private var currentAudioDevice: AudioDevice?
     
@@ -33,6 +34,7 @@ public final class ArbitrationEngine: @unchecked Sendable {
         self.driver = driver
         self.whitelistManager = whitelistManager
         self.config = config
+        self.isAirPodsBypassEnabled = config.enableAirPodsBypass
     }
     
     public func start() {
@@ -69,6 +71,13 @@ public final class ArbitrationEngine: @unchecked Sendable {
         }
     }
     
+    public func setAirPodsBypassEnabled(_ enabled: Bool) {
+        self.isAirPodsBypassEnabled = enabled
+        if let device = currentAudioDevice {
+            handleAudioDeviceChanged(device)
+        }
+    }
+    
     // MARK: - State Machine & Event Handling
     
     private func handleAudioDeviceChanged(_ device: AudioDevice) {
@@ -81,10 +90,17 @@ public final class ArbitrationEngine: @unchecked Sendable {
         }
         
         // Gatekeeper Check: Is it an Apple AirPods device?
-        if config.enableAirPodsBypass && device.isAirPods {
-            print("[ArbitrationEngine] GATEKEEPER BYPASS: Detected AirPods. Handing over to native Apple engine.")
-            currentState = .bypassed(reason: "AirPods Active (Apple Ecosystem Native)")
-            return
+        if device.isAirPods {
+            let isPeerAndroid = config.targetPhoneName?.lowercased().contains("android") ?? false
+            let shouldBypass = isAirPodsBypassEnabled && !isPeerAndroid
+            
+            if shouldBypass {
+                print("[ArbitrationEngine] GATEKEEPER BYPASS: Detected AirPods on Apple ecosystem. Handing over to native Apple engine.")
+                currentState = .bypassed(reason: "AirPods Active (Native Apple Handoff)")
+                return
+            } else {
+                print("[ArbitrationEngine] AirPods active with custom management enabled (Android peer or manual override).")
+            }
         }
         
         // Check for built-in speaker
@@ -94,7 +110,7 @@ public final class ArbitrationEngine: @unchecked Sendable {
         }
         
         // Target Headphone Match
-        if driver.canHandle(deviceName: device.name) || device.isShokz {
+        if driver.canHandle(deviceName: device.name) || device.isShokz || device.isAirPods {
             print("[ArbitrationEngine] Target headphone '\(device.name)' connected and active.")
             let isPlaying = mediaObserver.isMediaPlaying()
             if isPlaying {

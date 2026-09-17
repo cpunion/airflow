@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 
 /// Implementation of MediaPlaybackObserverProtocol for macOS using the private MediaRemote.framework.
@@ -127,3 +128,17 @@ public final class MediaRemoteObserver: MediaPlaybackObserverProtocol, @unchecke
         }
     }
 }
+#else
+import Foundation
+
+/// Fallback stub for non-macOS environments (Linux/Windows).
+public final class MediaRemoteObserver: MediaPlaybackObserverProtocol, @unchecked Sendable {
+    public init() {}
+    public func startMonitoring(onPlaybackChanged: @escaping @Sendable (Bool) -> Void) {}
+    public func stopMonitoring() {}
+    public func isMediaPlaying() -> Bool { return false }
+    public func pauseMedia() {}
+    public func resumeMedia() {}
+}
+#endif
+

@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 import CoreAudio
 
@@ -196,3 +197,16 @@ public final class CoreAudioMonitor: AudioDeviceMonitorProtocol, @unchecked Send
         return bufferList.mNumberBuffers > 0
     }
 }
+#else
+import Foundation
+
+/// Fallback stub for non-macOS environments (Linux/Windows).
+public final class CoreAudioMonitor: AudioDeviceMonitorProtocol, @unchecked Sendable {
+    public init() {}
+    public func startMonitoring(onDeviceChanged: @escaping @Sendable (AudioDevice) -> Void) {}
+    public func stopMonitoring() {}
+    public func getCurrentDefaultDevice() -> AudioDevice? { return nil }
+    public func listOutputDevices() -> [AudioDevice] { return [] }
+}
+#endif
+

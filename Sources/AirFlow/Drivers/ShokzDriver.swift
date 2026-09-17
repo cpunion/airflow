@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 import CoreBluetooth
 
@@ -179,3 +180,22 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
         self.onBatteryChanged?(battery)
     }
 }
+#else
+import Foundation
+
+/// Fallback stub for non-macOS environments (Linux/Windows).
+public final class ShokzDriver: HeadphoneDriver, @unchecked Sendable {
+    public let driverId = "driver.shokz.opendots"
+    public let brandName = "Shokz"
+    public var onBatteryChanged: (@Sendable (HeadphoneBattery) -> Void)?
+    public var onPairedDevicesChanged: (@Sendable ([PairedDeviceInfo]) -> Void)?
+    
+    public init(config: AppConfig = .load()) {}
+    public func canHandle(deviceName: String) -> Bool { return false }
+    public func start() {}
+    public func stop() {}
+    public func getBatteryStatus() -> HeadphoneBattery? { return nil }
+    public func queryPairedDevices() async throws -> [PairedDeviceInfo] { return [] }
+}
+#endif
+

@@ -1,7 +1,9 @@
-import AppKit
 import Foundation
 
-// MARK: - Application Delegate
+#if os(macOS)
+import AppKit
+
+// MARK: - Application Delegate (macOS)
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -50,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-// MARK: - Modern Swift 6 Entry Point
+// MARK: - Modern Swift 6 Entry Point (macOS)
 
 @main
 struct AirFlowApp {
@@ -64,3 +66,33 @@ struct AirFlowApp {
         app.run()
     }
 }
+
+#else
+
+// MARK: - Headless CLI Entry Point (Linux & Windows)
+
+@main
+struct AirFlowApp {
+    static func main() {
+        print("[AirFlow] Starting universal headphone handoff daemon (Linux/Windows)...")
+        let config = AppConfig.load()
+        let audioMonitor = CoreAudioMonitor()
+        let mediaObserver = MediaRemoteObserver()
+        let driver = ShokzDriver(config: config)
+        let whitelist = DeviceWhitelistManager(config: config)
+        
+        let engine = ArbitrationEngine(
+            audioMonitor: audioMonitor,
+            mediaObserver: mediaObserver,
+            driver: driver,
+            whitelistManager: whitelist,
+            config: config
+        )
+        
+        engine.start()
+        print("[AirFlow] Daemon running. Press Ctrl+C to terminate.")
+        RunLoop.main.run()
+    }
+}
+
+#endif

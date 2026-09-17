@@ -1,3 +1,4 @@
+#if canImport(AppKit) && canImport(SwiftUI)
 import SwiftUI
 
 /// Observable view model binding the core engine state to the SwiftUI popover interface.
@@ -12,6 +13,7 @@ public final class StatusPopoverViewModel: ObservableObject {
     @Published public var isAirPodsBypassEnabled: Bool = true
     
     public var onToggleHandoff: ((Bool) -> Void)?
+    public var onToggleAirPodsBypass: ((Bool) -> Void)?
     public var onSelectDevice: ((AudioDevice) -> Void)?
     public var onQuit: (() -> Void)?
     
@@ -55,22 +57,34 @@ public struct StatusPopoverView: View {
             Divider()
             
             // Footer: Controls & Quit
-            HStack {
-                Toggle("Smart Handoff", isOn: $viewModel.isHandoffEnabled)
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .onChange(of: viewModel.isHandoffEnabled) { _, newValue in
-                        viewModel.onToggleHandoff?(newValue)
-                    }
-                
-                Spacer()
-                
-                Button("Quit") {
-                    viewModel.onQuit?()
+            VStack(spacing: 8) {
+                HStack {
+                    Toggle("Smart Handoff", isOn: $viewModel.isHandoffEnabled)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .onChange(of: viewModel.isHandoffEnabled) { _, newValue in
+                            viewModel.onToggleHandoff?(newValue)
+                        }
+                    
+                    Spacer()
+                    
+                    Toggle("AirPods Bypass", isOn: $viewModel.isAirPodsBypassEnabled)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .onChange(of: viewModel.isAirPodsBypassEnabled) { _, newValue in
+                            viewModel.onToggleAirPodsBypass?(newValue)
+                        }
                 }
-                .buttonStyle(.plain)
-                .foregroundColor(.secondary)
-                .font(.footnote)
+                
+                HStack {
+                    Spacer()
+                    Button("Quit") {
+                        viewModel.onQuit?()
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.secondary)
+                    .font(.footnote)
+                }
             }
         }
         .padding(16)
@@ -200,3 +214,5 @@ public struct StatusPopoverView: View {
         }
     }
 }
+#endif
+

@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ShokzHandoff
+@testable import AirFlow
 
 // MARK: - Mock Implementations
 
@@ -104,12 +104,12 @@ final class MockDriver: HeadphoneDriver, @unchecked Sendable {
 @Suite("AirFlow Arbitration & Gatekeeper Tests")
 struct ArbitrationTests {
     
-    @Test("Gatekeeper: Automatically bypasses when AirPods are active")
+    @Test("Gatekeeper: Automatically bypasses when AirPods are active on Apple ecosystem")
     func testAirPodsBypass() async throws {
         let audioMonitor = MockAudioMonitor()
         let mediaObserver = MockMediaObserver()
         let driver = MockDriver()
-        let config = AppConfig(enableAirPodsBypass: true)
+        let config = AppConfig(targetPhoneName: "iPhone 15", enableAirPodsBypass: true)
         let whitelist = DeviceWhitelistManager(config: config)
         
         let engine = ArbitrationEngine(
@@ -126,11 +126,64 @@ struct ArbitrationTests {
         let airPods = AudioDevice(id: 1, name: "AirPods Pro", isBluetooth: true)
         audioMonitor.triggerDeviceChange(airPods)
         
-        #expect(engine.currentState == .bypassed(reason: "AirPods Active (Apple Ecosystem Native)"))
+        #expect(engine.currentState == .bypassed(reason: "AirPods Active (Native Apple Handoff)"))
         
         // Media play while AirPods active should NOT trigger arbitration
         mediaObserver.triggerPlayback(playing: true)
-        #expect(engine.currentState == .bypassed(reason: "AirPods Active (Apple Ecosystem Native)"))
+        #expect(engine.currentState == .bypassed(reason: "AirPods Active (Native Apple Handoff)"))
+    }
+    
+    @Test("Gatekeeper: Does NOT bypass AirPods when peer is Android")
+    func testAirPodsWithAndroidPeer() async throws {
+        let audioMonitor = MockAudioMonitor()
+        let mediaObserver = MockMediaObserver()
+        let driver = MockDriver()
+        let config = AppConfig(targetPhoneName: "Pixel 8 (Android)", enableAirPodsBypass: true)
+        let whitelist = DeviceWhitelistManager(config: config)
+        
+        let engine = ArbitrationEngine(
+            audioMonitor: audioMonitor,
+            mediaObserver: mediaObserver,
+            driver: driver,
+            whitelistManager: whitelist,
+            config: config
+        )
+        
+        engine.start()
+        
+        // Trigger AirPods connection
+        let airPods = AudioDevice(id: 1, name: "AirPods Pro", isBluetooth: true)
+        audioMonitor.triggerDeviceChange(airPods)
+        
+        // Should NOT bypass because peer is Android!
+        #expect(engine.currentState == .idle)
+    }
+    
+    @Test("Gatekeeper: User can manually disable AirPods bypass on Apple ecosystem")
+    func testAirPodsManualOverride() async throws {
+        let audioMonitor = MockAudioMonitor()
+        let mediaObserver = MockMediaObserver()
+        let driver = MockDriver()
+        let config = AppConfig(targetPhoneName: "iPhone 15", enableAirPodsBypass: true)
+        let whitelist = DeviceWhitelistManager(config: config)
+        
+        let engine = ArbitrationEngine(
+            audioMonitor: audioMonitor,
+            mediaObserver: mediaObserver,
+            driver: driver,
+            whitelistManager: whitelist,
+            config: config
+        )
+        
+        engine.start()
+        
+        let airPods = AudioDevice(id: 1, name: "AirPods Pro", isBluetooth: true)
+        audioMonitor.triggerDeviceChange(airPods)
+        #expect(engine.currentState == .bypassed(reason: "AirPods Active (Native Apple Handoff)"))
+        
+        // User disables bypass
+        engine.setAirPodsBypassEnabled(false)
+        #expect(engine.currentState == .idle)
     }
     
     @Test("Target Headphone: Shokz activates arbitration engine")

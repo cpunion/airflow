@@ -1,3 +1,4 @@
+#if canImport(AppKit) && canImport(SwiftUI)
 import AppKit
 import SwiftUI
 
@@ -74,6 +75,10 @@ public final class MenubarManager: NSObject {
             self?.engine.setHandoffEnabled(enabled)
         }
         
+        viewModel.onToggleAirPodsBypass = { [weak self] enabled in
+            self?.engine.setAirPodsBypassEnabled(enabled)
+        }
+        
         viewModel.onQuit = {
             NSApp.terminate(nil)
         }
@@ -113,3 +118,17 @@ public final class MenubarManager: NSObject {
         }
     }
 }
+#else
+import Foundation
+
+/// Fallback stub for non-macOS platforms without AppKit/SwiftUI.
+public final class MenubarManager: @unchecked Sendable {
+    public init(
+        engine: ArbitrationEngine,
+        audioMonitor: AudioDeviceMonitorProtocol,
+        driver: HeadphoneDriver,
+        whitelistManager: DeviceWhitelistManager
+    ) {}
+}
+#endif
+

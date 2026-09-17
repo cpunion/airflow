@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-macos:
+    name: macOS Build & Test
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build AirFlow (Release)
+        run: swift build -c release
+
+      - name: Run Unit Tests
+        run: swift test
+
+  test-linux:
+    name: Linux Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0"
+
+      - name: Build AirFlow (Release)
+        run: swift build -c release
+
+      - name: Run Unit Tests
+        run: swift test
+
+  test-windows:
+    name: Windows Build & Test
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0"
+
+      - name: Build AirFlow (Release)
+        run: swift build -c release
+
+      - name: Run Unit Tests
+        run: swift test

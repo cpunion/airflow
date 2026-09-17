@@ -4,19 +4,23 @@
 import PackageDescription
 
 let package = Package(
-    name: "ShokzHandoff",
+    name: "AirFlow",
     platforms: [
         .macOS(.v14)
     ],
+    products: [
+        .executable(
+            name: "AirFlow",
+            targets: ["AirFlow"]
+        )
+    ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .executableTarget(
-            name: "ShokzHandoff"
+            name: "AirFlow"
         ),
         .testTarget(
-            name: "ShokzHandoffTests",
-            dependencies: ["ShokzHandoff"]
+            name: "AirFlowTests",
+            dependencies: ["AirFlow"]
         ),
     ],
     swiftLanguageModes: [.v6]
