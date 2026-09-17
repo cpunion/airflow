@@ -11,12 +11,16 @@ let package = Package(
     products: [
         .executable(
             name: "AirFlow",
-            targets: ["AirFlow"]
+            targets: ["AirFlowCLI"]
         )
     ],
     targets: [
-        .executableTarget(
+        .target(
             name: "AirFlow"
+        ),
+        .executableTarget(
+            name: "AirFlowCLI",
+            dependencies: ["AirFlow"]
         ),
         .testTarget(
             name: "AirFlowTests",

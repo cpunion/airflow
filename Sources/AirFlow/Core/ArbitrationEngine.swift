@@ -110,7 +110,7 @@ public final class ArbitrationEngine: @unchecked Sendable {
         }
         
         // Target Headphone Match
-        if driver.canHandle(deviceName: device.name) || device.isShokz || device.isAirPods {
+        if driver.canHandle(deviceName: device.name) || device.isAirPods {
             print("[ArbitrationEngine] Target headphone '\(device.name)' connected and active.")
             let isPlaying = mediaObserver.isMediaPlaying()
             if isPlaying {

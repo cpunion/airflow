@@ -1,4 +1,4 @@
-# AirFlow (`shokz-handoff`)
+# AirFlow
 
 > Universal, intelligent audio handoff and device manager for wireless headphones across macOS, Linux, Windows, Android, and iOS.
 > **AirPods-like seamless switching for Shokz, Sony, Bose, and more — with zero mobile apps required on iOS.**
@@ -30,19 +30,19 @@ Standard Bluetooth Multipoint headphones (such as Shokz OpenDots 2, Sony WH/WF s
 ## 🛠 Project Structure
 
 ```
-shokz/
+AirFlow/
 ├── docs/
 │   └── DESIGN.md                 # Full architectural specification
 ├── AGENTS.md                     # Agent guide & developer instructions
 ├── Package.swift                 # Swift Package Manager manifest
 ├── Sources/
-│   └── ShokzHandoff/
+│   └── AirFlow/
 │       ├── Core/                 # Arbitration engine, state machine, whitelist, config
 │       ├── Drivers/              # Headphone drivers (Shokz, AirPods, Sony, Generic)
 │       ├── Platform/             # macOS, Linux, and Windows platform adapters
 │       └── UI/                   # Menubar status item & SwiftUI popover
 └── Tests/
-    └── ShokzHandoffTests/
+    └── AirFlowTests/
 ```
 
 ---
@@ -60,7 +60,7 @@ swift build
 
 ### Run
 ```bash
-swift run ShokzHandoff
+swift run AirFlow
 ```
 
 ---
@@ -68,11 +68,20 @@ swift run ShokzHandoff
 ## 🗺 Roadmap
 
 - [x] Comprehensive requirements, research & architecture specification.
-- [x] Hardware protocol verification (CoreAudio, MediaRemote, Shokz BLE GATT services).
-- [x] Pluggable `HeadphoneDriver` architecture (`ShokzDriver` supporting Fast Pair & BES).
+- [x] Hardware protocol verification (CoreAudio, MediaRemote, BLE GATT services).
+- [x] Pluggable `HeadphoneDriver` architecture (supporting Fast Pair & BES chipsets).
 - [x] Native macOS menubar app with battery gauges, device switcher, and whitelist binding.
 - [x] Hardware-independent unit test suite for Gatekeeper bypass and arbitration engine.
 - [ ] Mobile peer remote control command dispatch.
 - [ ] Linux daemon implementation (BlueZ + PipeWire + MPRIS) and Apple Accessory Protocol (AAP) driver for AirPods.
 - [ ] Windows daemon implementation (WASAPI + GSMTC WinRT) and modern flyout tray UI.
 - [ ] Single-point headphone dynamic reconnect emulation.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please adhere to the following guidelines:
+1. All contributions, bug fixes, and feature additions must be submitted via **Pull Requests (PRs)** targeting `main`. Direct pushes to `main` are disabled.
+2. Ensure all commit messages, code comments, and documentation are written in **English**.
+3. All new logic and state machine changes must include unit tests verifying behavior across platforms. Run `swift test` before submitting your PR.

@@ -125,7 +125,7 @@ public struct StatusPopoverView: View {
             HStack {
                 Image(systemName: "headphones")
                     .foregroundColor(.accentColor)
-                Text(viewModel.currentAudioDevice?.name ?? "Shokz Headphone")
+                Text(viewModel.currentAudioDevice?.name ?? "Wireless Headphone")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .lineLimit(1)

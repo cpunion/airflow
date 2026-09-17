@@ -17,6 +17,13 @@ jobs:
       - name: Build AirFlow (Release)
         run: swift build -c release
 
+      - name: Report Binary Size
+        run: |
+          echo "=== macOS Release Binary Size ==="
+          ls -lh .build/release/AirFlow
+          du -h .build/release/AirFlow
+          file .build/release/AirFlow
+
       - name: Run Unit Tests
         run: swift test
 
@@ -35,23 +42,70 @@ jobs:
       - name: Build AirFlow (Release)
         run: swift build -c release
 
+      - name: Report Binary Size
+        run: |
+          echo "=== Linux Release Binary Size ==="
+          ls -lh .build/release/AirFlow
+          du -h .build/release/AirFlow
+          file .build/release/AirFlow
+          echo "--- Dynamic Library Dependencies ---"
+          ldd .build/release/AirFlow || true
+
       - name: Run Unit Tests
         run: swift test
 
   test-windows:
     name: Windows Build & Test
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Visual Studio Development Environment
+        uses: compnerd/gha-setup-vsdevenv@main
+        with:
+          winsdk: "10.0.22621.0"
 
       - name: Setup Swift
         uses: SwiftyLab/setup-swift@latest
         with:
           swift-version: "6.0.3"
 
+      - name: Configure Windows SDK Module Maps
+        shell: pwsh
+        run: |
+          $toolchainRoot = Split-Path (Split-Path (Split-Path $env:SDKROOT))
+          Write-Host "Searching for modulemaps in $toolchainRoot..."
+          $maps = Get-ChildItem -Path $toolchainRoot -Recurse -Filter "*modulemap"
+          $maps | ForEach-Object { Write-Host "Found: $($_.FullName)" }
+          
+          $ucrtSrc = ($maps | Where-Object { $_.Name -eq "ucrt.modulemap" } | Select-Object -First 1).FullName
+          $winsdkSrc = ($maps | Where-Object { $_.Name -eq "winsdk.modulemap" } | Select-Object -First 1).FullName
+          
+          $ucrtDest = "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\ucrt\module.modulemap"
+          $umDest = "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\um\module.modulemap"
+          
+          if ($ucrtSrc) {
+            Copy-Item $ucrtSrc $ucrtDest -Force
+            Write-Host "Copied $ucrtSrc -> $ucrtDest"
+          }
+          if ($winsdkSrc) {
+            Copy-Item $winsdkSrc $umDest -Force
+            Write-Host "Copied $winsdkSrc -> $umDest"
+          }
+
       - name: Build AirFlow (Release)
         run: swift build -c release
+
+      - name: Report Binary Size
+        shell: pwsh
+        run: |
+          Write-Host "=== Windows Release Binary Size ==="
+          Get-ChildItem -Path .build -Recurse -Filter "AirFlow.exe" | ForEach-Object {
+            $sizeKB = [math]::Round($_.Length / 1KB, 2)
+            $sizeMB = [math]::Round($_.Length / 1MB, 2)
+            Write-Host "$($_.FullName): $sizeKB KB ($sizeMB MB)"
+          }
 
       - name: Run Unit Tests
         run: swift test
