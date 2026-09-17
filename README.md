@@ -23,6 +23,7 @@ Standard Bluetooth Multipoint headphones (such as Shokz OpenDots 2, Sony WH/WF s
 ## 📚 Technical Documentation
 
 - **[docs/DESIGN.md](docs/DESIGN.md)**: Complete system specification, state machine diagrams, protocol reverse-engineering analysis (Shokz BES, Apple AAP, Sony MDR, MagicPods), and cross-platform architecture.
+- **[docs/TROUBLESHOOTING_AND_RECOMMENDATIONS.md](docs/TROUBLESHOOTING_AND_RECOMMENDATIONS.md)**: Hardware diagnostic findings, Shokz battery & mobile app reverse-engineering report, and architectural recommendations.
 - **[AGENTS.md](AGENTS.md)**: Developer & AI Agent guide detailing repository structure, build guidelines, and Bluetooth protocol implementations.
 
 ---
