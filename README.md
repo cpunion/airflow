@@ -34,10 +34,16 @@ AirFlow/
 ├── docs/
 │   └── DESIGN.md                 # Full architectural specification
 ├── AGENTS.md                     # Agent guide & developer instructions
+├── Cargo.toml                    # Rust workspace manifest
 ├── Package.swift                 # Swift Package Manager manifest
+├── crates/
+│   ├── airflow-core/             # Rust arbitration engine & C-ABI library
+│   │   ├── include/airflow_core.h # Public C-ABI header
+│   │   └── src/                  # Arbitration, whitelist, drivers (BES, AAP, MDR)
+│   └── airflow-cli/              # Zero-dependency Rust CLI & background daemon
 ├── Sources/
 │   └── AirFlow/
-│       ├── Core/                 # Arbitration engine, state machine, whitelist, config
+│       ├── Core/                 # State machine, RustEngineBridge, whitelist, config
 │       ├── Drivers/              # Headphone drivers (Shokz, AirPods, Sony, Generic)
 │       ├── Platform/             # macOS, Linux, and Windows platform adapters
 │       └── UI/                   # Menubar status item & SwiftUI popover
@@ -47,20 +53,30 @@ AirFlow/
 
 ---
 
-## 💻 Building & Running (macOS)
+## 💻 Building & Running
 
-### Prerequisites
-- macOS 14.0+ (Sonoma, Sequoia, or later)
-- Swift 6.0+ toolchain (`swift --version`)
-
-### Build
+### Rust Core & Standalone CLI (All Platforms: macOS, Linux, Windows)
 ```bash
-swift build
+# Build Rust release binaries
+cargo build --release
+
+# Run Rust unit tests
+cargo test --workspace
+
+# Run standalone CLI daemon (zero external runtime dependencies, ~1.6MB)
+cargo run -p airflow-cli -- daemon
 ```
 
-### Run
+### macOS Native Menubar App (SwiftUI)
 ```bash
+# Build Swift menubar app
+swift build
+
+# Run macOS app
 swift run AirFlow
+
+# Run Swift test suite (with dynamic Rust C-ABI bridge test)
+swift test
 ```
 
 ---

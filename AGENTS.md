@@ -29,12 +29,25 @@ AirFlow/
 │   └── DESIGN.md                 # Primary architecture & protocol specification
 ├── AGENTS.md                     # Agent guide (this document)
 ├── README.md                     # Public project overview & quickstart
+├── Cargo.toml                    # Rust workspace manifest
 ├── Package.swift                 # SPM manifest (Swift 6.0+)
+├── crates/
+│   ├── airflow-core/             # Rust arbitration engine & C-ABI library
+│   │   ├── include/airflow_core.h # Public C-ABI header
+│   │   └── src/
+│   │       ├── arbitration.rs    # Core state machine & mutual exclusion
+│   │       ├── whitelist.rs      # Device whitelist & persistence
+│   │       ├── models.rs         # Shared domain models
+│   │       ├── drivers/          # Driver implementations (Shokz, AirPods, Sony, Generic)
+│   │       └── ffi.rs            # C-ABI export layer for Swift / WinUI / GTK
+│   └── airflow-cli/              # Zero-dependency Rust CLI & background daemon
+│       └── src/main.rs
 ├── Sources/
 │   └── AirFlow/
 │       ├── AirFlowApp.swift      # Entry point & CLI/Menubar bootstrap
 │       ├── Core/
 │       │   ├── ArbitrationEngine.swift     # State machine & mutual exclusion logic
+│       │   ├── RustEngineBridge.swift      # Dynamic C-ABI bridge to airflow-core
 │       │   ├── Config.swift                # Dynamic .env configuration loader
 │       │   ├── DeviceWhitelistManager.swift # Device ID persistence & binding
 │       │   └── Models.swift                # Shared models (AudioDevice, PeerDevice, etc.)
@@ -101,14 +114,27 @@ Dynamic loading via `dlopen("/System/Library/PrivateFrameworks/MediaRemote.frame
 
 ## 4. Build, Run, and Testing Guidelines
 
+### Rust Core & CLI:
 ```bash
-# Build the project
+# Build Rust workspace (Core + CLI)
+cargo build --release
+
+# Run Rust unit tests
+cargo test --workspace
+
+# Run Rust CLI daemon
+cargo run -p airflow-cli -- daemon
+```
+
+### macOS Swift App & SPM:
+```bash
+# Build Swift project
 swift build
 
 # Run executable in development mode
 swift run AirFlow
 
-# Run unit tests
+# Run unit tests (including Rust FFI bridge tests)
 swift test
 ```
 

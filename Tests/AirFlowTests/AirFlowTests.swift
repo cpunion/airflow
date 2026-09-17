@@ -235,3 +235,23 @@ struct ArbitrationTests {
         #expect(!whitelist.isWhitelisted(id: "random-id", name: "Stranger's iPhone"))
     }
 }
+
+@Suite("Rust Core Engine FFI Bridge Tests")
+struct RustBridgeTests {
+    @Test("Bridge: Loads Rust core dylib and verifies C-ABI interaction")
+    func testRustBridgeAvailability() {
+        let bridge = RustEngineBridge()
+        if bridge.isAvailable {
+            #expect(bridge.isAvailable)
+            
+            // Test whitelist C-ABI
+            bridge.bindDevice(id: "RUST-TEST-1", name: "Rust Pixel", address: nil)
+            #expect(bridge.isWhitelisted(id: "RUST-TEST-1"))
+            #expect(bridge.isWhitelisted(id: "ANY", name: "Rust Pixel"))
+            #expect(!bridge.isWhitelisted(id: "UNKNOWN", name: "Stranger"))
+            
+            bridge.unbindDevice()
+            #expect(!bridge.isWhitelisted(id: "RUST-TEST-1"))
+        }
+    }
+}

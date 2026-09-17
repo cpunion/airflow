@@ -14,6 +14,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Build and Test Rust Core & CLI
+        run: |
+          cargo test --workspace
+          cargo build --release --workspace
+
+      - name: Report Rust Binary Size
+        run: |
+          echo "=== macOS Rust Release Binary Size ==="
+          ls -lh target/release/airflow target/release/libairflow_core.dylib target/release/libairflow_core.a || true
+          file target/release/airflow
+
       - name: Build AirFlow (Release)
         run: swift build -c release
 
@@ -33,6 +44,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Build and Test Rust Core & CLI
+        run: |
+          cargo test --workspace
+          cargo build --release --workspace
+
+      - name: Report Rust Binary Size
+        run: |
+          echo "=== Linux Rust Release Binary Size ==="
+          ls -lh target/release/airflow target/release/libairflow_core.so target/release/libairflow_core.a || true
+          file target/release/airflow || true
+          echo "--- Rust Dynamic Library Dependencies ---"
+          ldd target/release/airflow || true
 
       - name: Setup Swift
         uses: swift-actions/setup-swift@v2
@@ -60,6 +84,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Build and Test Rust Core & CLI
+        run: |
+          cargo test --workspace
+          cargo build --release --workspace
+
+      - name: Report Rust Binary Size
+        shell: pwsh
+        run: |
+          Write-Host "=== Windows Rust Release Binary Size ==="
+          Get-ChildItem -Path target/release -Filter "airflow*.exe" | ForEach-Object {
+            $sizeKB = [math]::Round($_.Length / 1KB, 2)
+            $sizeMB = [math]::Round($_.Length / 1MB, 2)
+            Write-Host "$($_.FullName): $sizeKB KB ($sizeMB MB)"
+          }
+          Get-ChildItem -Path target/release -Filter "*airflow_core*.dll" | ForEach-Object {
+            $sizeKB = [math]::Round($_.Length / 1KB, 2)
+            $sizeMB = [math]::Round($_.Length / 1MB, 2)
+            Write-Host "$($_.FullName): $sizeKB KB ($sizeMB MB)"
+          }
 
       - name: Setup Visual Studio Development Environment
         uses: compnerd/gha-setup-vsdevenv@main
