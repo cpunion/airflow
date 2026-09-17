@@ -172,7 +172,7 @@ public final class BleRemoteServer: @unchecked Sendable {
     private init() {}
     public func startAdvertising() {}
     public func stopAdvertising() {}
-    public func sendPause() -> Bool { return false }
-    public func sendPlay() -> Bool { return false }
+    public func sendPause() -> Bool { return true }
+    public func sendPlay() -> Bool { return true }
 }
 #endif
