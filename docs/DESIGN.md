@@ -172,8 +172,8 @@ To prevent accidental interference with nearby devices in shared environments:
    - The app reads connected Bluetooth audio sinks from the OS.
    - Automatically selects devices matching target driver signatures (e.g., "Shokz", "OpenDots", "WH-1000XM5").
 2. **Paired Device Verification**:
-   - When supported by the headphone driver (e.g. `ShokzDriver`), the app queries the headphone over BLE to retrieve the secondary device name (e.g. `Exobrain`).
-   - The user confirms with a single click: *"Bind Exobrain as the mobile peer"*.
+   - When supported by the headphone driver (e.g. `ShokzDriver`), the app queries the headphone over BLE to retrieve the secondary device name (e.g. `My Phone`).
+   - The user confirms with a single click: *"Bind My Phone as the mobile peer"*.
 3. **Strict Whitelist Enforcement**:
    - Control commands are strictly addressed to the whitelisted device identifier. All other scanned peripherals are ignored.
 
