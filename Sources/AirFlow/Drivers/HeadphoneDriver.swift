@@ -5,17 +5,22 @@ public struct HeadphoneBattery: Sendable, Equatable {
     public let left: Int?
     public let right: Int?
     public let caseLevel: Int?
+    public let single: Int?
     public let isCharging: Bool
     
-    public init(left: Int? = nil, right: Int? = nil, caseLevel: Int? = nil, isCharging: Bool = false) {
+    public init(left: Int? = nil, right: Int? = nil, caseLevel: Int? = nil, isCharging: Bool = false, single: Int? = nil) {
         self.left = left
         self.right = right
         self.caseLevel = caseLevel
+        self.single = single
         self.isCharging = isCharging
     }
     
     /// Returns primary single percentage representation (average or single earbud).
     public var primaryPercentage: Int {
+        if let s = single {
+            return s
+        }
         if let l = left, let r = right {
             return (l + r) / 2
         }

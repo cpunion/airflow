@@ -476,6 +476,9 @@ struct BluetoothBatteryTests {
         let onlyLeft = HeadphoneBattery(left: 70)
         #expect(onlyLeft.primaryPercentage == 70)
         
+        let pureSingle = HeadphoneBattery(single: 95)
+        #expect(pureSingle.primaryPercentage == 95)
+        
         let onlyCase = HeadphoneBattery(caseLevel: 45)
         #expect(onlyCase.primaryPercentage == 45)
     }
