@@ -70,6 +70,10 @@ pub struct GenericDriver {
 impl GenericDriver {
     pub const DRIVER_ID: &'static str = "driver.generic.bluetooth";
     pub const BRAND_NAME: &'static str = "Generic Bluetooth";
+
+    pub fn can_roam_to(current: &str, target: &str) -> bool {
+        !current.is_empty() && !target.is_empty() && current != target
+    }
 }
 
 impl HeadphoneDriver for GenericDriver {

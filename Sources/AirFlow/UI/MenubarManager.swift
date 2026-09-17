@@ -38,6 +38,7 @@ public final class MenubarManager: NSObject {
         button.image = NSImage(systemSymbolName: "headphones", accessibilityDescription: "AirFlow")
         button.target = self
         button.action = #selector(togglePopover)
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
     }
     
     private func setupPopover() {
@@ -146,6 +147,14 @@ public final class MenubarManager: NSObject {
     
     @objc private func togglePopover() {
         guard let button = statusItem.button else { return }
+        
+        // Option-click or Right-click: Instant Remote Pause Shortcut
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp || (event?.modifierFlags.contains(.option) == true) {
+            print("[MenubarManager] Quick action triggered: Dispatching remote pause to peer...")
+            _ = engine.dispatcher.dispatchPause()
+            return
+        }
         
         if popover.isShown {
             popover.performClose(nil)

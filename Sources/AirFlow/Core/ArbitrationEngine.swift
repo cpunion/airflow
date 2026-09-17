@@ -92,6 +92,7 @@ public final class ArbitrationEngine: @unchecked Sendable {
     private func handleAudioDeviceChanged(_ device: AudioDevice) {
         self.currentAudioDevice = device
         print("[ArbitrationEngine] Audio device changed to: '\(device.name)'")
+        (driver as? CompositeHeadphoneDriver)?.selectDriver(for: device.name)
         
         guard isHandoffEnabled else {
             currentState = .bypassed(reason: "Handoff Disabled by User")

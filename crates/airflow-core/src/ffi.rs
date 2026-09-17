@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::arbitration::ArbitrationEngine;
 use crate::drivers::airpods::{AirPodsDriver, AncMode};
+use crate::drivers::generic::GenericDriver;
 use crate::drivers::shokz::ShokzDriver;
 use crate::drivers::sony::SonyDriver;
 use crate::models::{AppConfig, AudioDevice, EngineState, PairedDeviceInfo};
@@ -407,3 +408,24 @@ pub unsafe extern "C" fn airflow_sony_parse_battery(
         false
     }
 }
+
+/// Coordinates single-point Bluetooth headset roaming feasibility.
+#[no_mangle]
+pub unsafe extern "C" fn airflow_generic_can_roam(
+    current_device: *const c_char,
+    target_device: *const c_char,
+) -> bool {
+    if current_device.is_null() || target_device.is_null() {
+        return false;
+    }
+    let cur = match CStr::from_ptr(current_device).to_str() {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let tgt = match CStr::from_ptr(target_device).to_str() {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    GenericDriver::can_roam_to(cur, tgt)
+}
+
