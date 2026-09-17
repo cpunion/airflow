@@ -68,7 +68,6 @@ jobs:
           
           $ucrtDest = "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\ucrt\module.modulemap"
           $umDest = "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\um\module.modulemap"
-          $sharedDest = "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\shared\module.modulemap"
           
           if ($ucrtSrc) {
             Copy-Item $ucrtSrc $ucrtDest -Force
@@ -76,8 +75,7 @@ jobs:
           }
           if ($winsdkSrc) {
             Copy-Item $winsdkSrc $umDest -Force
-            Copy-Item $winsdkSrc $sharedDest -Force
-            Write-Host "Copied $winsdkSrc -> $umDest & $sharedDest"
+            Write-Host "Copied $winsdkSrc -> $umDest"
           }
 
       - name: Build AirFlow (Release)
