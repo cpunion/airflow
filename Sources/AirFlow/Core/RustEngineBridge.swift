@@ -1,5 +1,13 @@
 import Foundation
 
+#if canImport(Darwin)
+import Darwin
+#elseif os(Linux)
+import Glibc
+#elseif os(Windows)
+import WinSDK
+#endif
+
 /// C-compatible state codes matching `AirFlowStateCode` in `airflow_core.h`.
 public enum RustStateCode: UInt32 {
     case idle = 0
@@ -10,12 +18,17 @@ public enum RustStateCode: UInt32 {
 }
 
 /// Dynamically bridges the Swift frontend to `airflow-core` (Rust C-ABI library).
-/// If `libairflow_core` is available, all arbitration decisions are delegated to the Rust engine.
+/// If `libairflow_core` (or `airflow_core.dll` on Windows) is available, all arbitration decisions are delegated to the Rust engine.
 public final class RustEngineBridge: @unchecked Sendable {
+    #if os(Windows)
+    private var dylibHandle: HMODULE?
+    #else
     private var dylibHandle: UnsafeMutableRawPointer?
+    #endif
+    
     private var engineHandle: OpaquePointer?
     
-    // Function pointers resolved via dlsym
+    // Function pointers resolved via dynamic loading
     private typealias CreateFn = @convention(c) () -> OpaquePointer?
     private typealias DestroyFn = @convention(c) (OpaquePointer?) -> Void
     private typealias AudioChangedFn = @convention(c) (OpaquePointer?, UInt32, UnsafePointer<CChar>?, Bool) -> Void
@@ -57,19 +70,58 @@ public final class RustEngineBridge: @unchecked Sendable {
         if let engine = engineHandle, let destroy = fnDestroy {
             destroy(engine)
         }
+        #if os(Windows)
+        if let dylib = dylibHandle {
+            FreeLibrary(dylib)
+        }
+        #else
         if let dylib = dylibHandle {
             dlclose(dylib)
         }
+        #endif
     }
     
     private func loadDylib(customPath: String?) {
+        #if os(Windows)
+        let candidatePaths: [String] = [
+            customPath,
+            "target/release/airflow_core.dll",
+            "target/debug/airflow_core.dll",
+            "airflow_core.dll"
+        ].compactMap { $0 }
+        
+        for path in candidatePaths {
+            if FileManager.default.fileExists(atPath: path) {
+                let handle = path.withCString { LoadLibraryA($0) }
+                if let handle = handle {
+                    self.dylibHandle = handle
+                    print("[RustEngineBridge] Successfully loaded Rust core from: \(path)")
+                    bindSymbols()
+                    break
+                }
+            }
+        }
+        
+        if dylibHandle == nil {
+            let handle = "airflow_core.dll".withCString { LoadLibraryA($0) }
+            if let handle = handle {
+                self.dylibHandle = handle
+                print("[RustEngineBridge] Successfully loaded Rust core via LoadLibrary search path.")
+                bindSymbols()
+            }
+        }
+        #else
         let candidatePaths: [String] = [
             customPath,
             Bundle.main.sharedFrameworksPath.map { "\($0)/libairflow_core.dylib" },
             "target/release/libairflow_core.dylib",
             "target/debug/libairflow_core.dylib",
+            "target/release/libairflow_core.so",
+            "target/debug/libairflow_core.so",
             "/usr/local/lib/libairflow_core.dylib",
-            "libairflow_core.dylib"
+            "/usr/local/lib/libairflow_core.so",
+            "libairflow_core.dylib",
+            "libairflow_core.so"
         ].compactMap { $0 }
         
         for path in candidatePaths {
@@ -84,17 +136,22 @@ public final class RustEngineBridge: @unchecked Sendable {
         }
         
         if dylibHandle == nil {
-            // Attempt standard dlopen search
-            if let handle = dlopen("libairflow_core.dylib", RTLD_NOW) {
+            let fallbackName = "libairflow_core.dylib"
+            if let handle = dlopen(fallbackName, RTLD_NOW) {
                 self.dylibHandle = handle
                 print("[RustEngineBridge] Successfully loaded Rust core via dlopen search path.")
                 bindSymbols()
             }
         }
+        #endif
     }
     
     private func bindSymbols() {
+        #if os(Windows)
         guard let dylib = dylibHandle else { return }
+        #else
+        guard let dylib = dylibHandle else { return }
+        #endif
         
         fnCreate = resolve(dylib, "airflow_engine_create")
         fnDestroy = resolve(dylib, "airflow_engine_destroy")
@@ -158,6 +215,15 @@ public final class RustEngineBridge: @unchecked Sendable {
         registerPause(engine, pauseCallback, bridgePtr)
     }
     
+    #if os(Windows)
+    private func resolve<T>(_ handle: HMODULE, _ symbol: String) -> T? {
+        guard let sym = symbol.withCString({ GetProcAddress(handle, $0) }) else {
+            print("[RustEngineBridge] Warning: symbol '\(symbol)' not found in library.")
+            return nil
+        }
+        return unsafeBitCast(sym, to: T.self)
+    }
+    #else
     private func resolve<T>(_ handle: UnsafeMutableRawPointer, _ symbol: String) -> T? {
         guard let sym = dlsym(handle, symbol) else {
             print("[RustEngineBridge] Warning: symbol '\(symbol)' not found in library.")
@@ -165,6 +231,7 @@ public final class RustEngineBridge: @unchecked Sendable {
         }
         return unsafeBitCast(sym, to: T.self)
     }
+    #endif
     
     // MARK: - Public Engine API
     
