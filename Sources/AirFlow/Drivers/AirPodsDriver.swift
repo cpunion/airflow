@@ -50,6 +50,13 @@ public final class AirPodsDriver: NSObject, HeadphoneDriver, CBCentralManagerDel
     }
     
     public func getBatteryStatus() -> HeadphoneBattery? {
+        #if os(macOS)
+        if let sysBattery = MacOSBluetoothBatteryProvider.queryBattery(for: "AirPods") ??
+                            MacOSBluetoothBatteryProvider.queryBattery(for: "Beats") {
+            self.currentBattery = sysBattery
+            return sysBattery
+        }
+        #endif
         return currentBattery
     }
     

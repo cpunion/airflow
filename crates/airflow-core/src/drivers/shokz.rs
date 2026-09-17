@@ -51,9 +51,9 @@ impl ShokzDriver {
         let is_charging = (data[0] & 0x80 != 0) || (data[1] & 0x80 != 0) || (data[2] & 0x80 != 0);
 
         Some(crate::models::HeadphoneBattery {
-            left: left.or(Some(80)),
-            right: right.or(Some(80)),
-            case_level: case_level.or(Some(90)),
+            left,
+            right,
+            case_level,
             is_charging,
         })
     }

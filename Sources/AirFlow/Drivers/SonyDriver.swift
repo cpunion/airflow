@@ -54,6 +54,14 @@ public final class SonyDriver: NSObject, HeadphoneDriver, CBCentralManagerDelega
     }
     
     public func getBatteryStatus() -> HeadphoneBattery? {
+        #if os(macOS)
+        if let sysBattery = MacOSBluetoothBatteryProvider.queryBattery(for: "Sony") ??
+                            MacOSBluetoothBatteryProvider.queryBattery(for: "WH-1000") ??
+                            MacOSBluetoothBatteryProvider.queryBattery(for: "WF-1000") {
+            self.currentBattery = sysBattery
+            return sysBattery
+        }
+        #endif
         return currentBattery
     }
     

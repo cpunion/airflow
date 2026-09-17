@@ -55,6 +55,14 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
     }
     
     public func getBatteryStatus() -> HeadphoneBattery? {
+        #if os(macOS)
+        if let sysBattery = MacOSBluetoothBatteryProvider.queryBattery(for: "Shokz") ??
+                            MacOSBluetoothBatteryProvider.queryBattery(for: "OpenDots") ??
+                            MacOSBluetoothBatteryProvider.queryBattery(for: targetConfig.targetHeadphoneName) {
+            self.currentBattery = sysBattery
+            return sysBattery
+        }
+        #endif
         return currentBattery
     }
     
@@ -194,9 +202,9 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
         let isCharging = (data[0] & 0x80 != 0) || (data[1] & 0x80 != 0) || (data[2] & 0x80 != 0)
         
         let battery = HeadphoneBattery(
-            left: left ?? 80,
-            right: right ?? 80,
-            caseLevel: caseLevel ?? 90,
+            left: left,
+            right: right,
+            caseLevel: caseLevel,
             isCharging: isCharging
         )
         

@@ -58,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         print("[AirFlow] Terminating application...")
         BleRemoteServer.shared.stopAdvertising()
+        menubarManager?.stop()
         engine?.stop()
     }
 }

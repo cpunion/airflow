@@ -57,6 +57,12 @@ public final class GenericDriver: NSObject, HeadphoneDriver, @unchecked Sendable
     }
     
     public func getBatteryStatus() -> HeadphoneBattery? {
+        #if os(macOS)
+        if let sysBattery = MacOSBluetoothBatteryProvider.queryBattery() {
+            self.currentBattery = sysBattery
+            return sysBattery
+        }
+        #endif
         return currentBattery
     }
     

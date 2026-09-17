@@ -463,3 +463,29 @@ struct HardwareWireCodecTests {
     }
 }
 
+@Suite("Native Bluetooth Battery Provider Tests")
+struct BluetoothBatteryTests {
+    @Test("Battery Model: primaryPercentage handles single, dual, and case battery")
+    func testBatteryPercentageCalculation() {
+        let dual = HeadphoneBattery(left: 80, right: 90, caseLevel: 100)
+        #expect(dual.primaryPercentage == 85)
+        
+        let single = HeadphoneBattery(left: 50, right: 50)
+        #expect(single.primaryPercentage == 50)
+        
+        let onlyLeft = HeadphoneBattery(left: 70)
+        #expect(onlyLeft.primaryPercentage == 70)
+        
+        let onlyCase = HeadphoneBattery(caseLevel: 45)
+        #expect(onlyCase.primaryPercentage == 45)
+    }
+    
+    @Test("Battery Provider: queryBattery does not crash and safely handles queries")
+    func testQueryBatterySafeInvocation() {
+        #if os(macOS)
+        let _ = MacOSBluetoothBatteryProvider.queryBattery(for: "NonExistentDevice-12345")
+        let _ = MacOSBluetoothBatteryProvider.queryBattery()
+        #endif
+    }
+}
+

@@ -79,7 +79,14 @@ public final class CompositeHeadphoneDriver: HeadphoneDriver, @unchecked Sendabl
     }
     
     public func getBatteryStatus() -> HeadphoneBattery? {
-        return activeDriver.getBatteryStatus()
+        if let b = activeDriver.getBatteryStatus() {
+            return b
+        }
+        #if os(macOS)
+        return MacOSBluetoothBatteryProvider.queryBattery()
+        #else
+        return nil
+        #endif
     }
     
     public func queryPairedDevices() async throws -> [PairedDeviceInfo] {
