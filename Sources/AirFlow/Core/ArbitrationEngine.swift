@@ -16,6 +16,7 @@ public final class ArbitrationEngine: @unchecked Sendable {
     private let driver: HeadphoneDriver
     private let whitelistManager: DeviceWhitelistManager
     private let config: AppConfig
+    public let dispatcher: PeerCommandDispatcher
     
     private var isHandoffEnabled: Bool = true
     private var isAirPodsBypassEnabled: Bool = true
@@ -35,6 +36,7 @@ public final class ArbitrationEngine: @unchecked Sendable {
         self.whitelistManager = whitelistManager
         self.config = config
         self.isAirPodsBypassEnabled = config.enableAirPodsBypass
+        self.dispatcher = PeerCommandDispatcher(whitelistManager: whitelistManager, driver: driver)
     }
     
     public func start() {
@@ -153,8 +155,7 @@ public final class ArbitrationEngine: @unchecked Sendable {
         
         // Dispatch pause to the whitelisted mobile peer
         if let boundPeer = whitelistManager.getBoundDevice() {
-            print("[ArbitrationEngine] Sending Pause to whitelisted peer: \(boundPeer.name)")
-            // Future extension: dispatch BLE remote command / Apple Media Service
+            dispatcher.dispatchPause(to: boundPeer)
         }
         
         startCooldown()
