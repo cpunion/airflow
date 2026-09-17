@@ -54,10 +54,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 // MARK: - Modern Swift 6 Entry Point (macOS)
 
-@main
-struct AirFlowApp {
+public struct AirFlowApp {
     @MainActor
-    static func main() {
+    public static func run() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
@@ -71,9 +70,8 @@ struct AirFlowApp {
 
 // MARK: - Headless CLI Entry Point (Linux & Windows)
 
-@main
-struct AirFlowApp {
-    static func main() {
+public struct AirFlowApp {
+    public static func run() {
         print("[AirFlow] Starting universal headphone handoff daemon (Linux/Windows)...")
         let config = AppConfig.load()
         let audioMonitor = CoreAudioMonitor()
