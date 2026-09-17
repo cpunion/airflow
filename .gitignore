@@ -11,3 +11,5 @@ DerivedData/
 !.env.example
 scratch/
 target/
+dist/
+

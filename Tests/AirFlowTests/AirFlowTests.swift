@@ -377,3 +377,89 @@ struct PlatformFeatureTests {
         _ = helper.isEnabled
     }
 }
+
+@Suite("Universal Driver & Registry Tests")
+struct UniversalDriverTests {
+    @Test("Driver Registry: Dynamically selects matching brand driver")
+    func testCompositeDriverSelection() {
+        let shokz = ShokzDriver(config: AppConfig())
+        let airpods = AirPodsDriver()
+        let sony = SonyDriver()
+        let generic = GenericDriver()
+        let composite = CompositeHeadphoneDriver(drivers: [shokz, airpods, sony, generic])
+        
+        #expect(composite.canHandle(deviceName: "Shokz OpenDots 2"))
+        #expect(composite.canHandle(deviceName: "AirPods Pro"))
+        #expect(composite.canHandle(deviceName: "Sony WH-1000XM5"))
+        #expect(composite.canHandle(deviceName: "Bose QuietComfort"))
+        
+        composite.selectDriver(for: "AirPods Max")
+        #expect(composite.brandName == "Apple AirPods")
+        
+        composite.selectDriver(for: "Sony WH-1000XM4")
+        #expect(composite.brandName == "Sony MDR")
+        
+        composite.selectDriver(for: "OpenDots 2")
+        #expect(composite.brandName == "Shokz")
+    }
+}
+
+@Suite("Hardware Parity & Wire Codecs Tests")
+struct HardwareWireCodecTests {
+    @Test("Wire Codecs: Shokz pause packet framing")
+    func testShokzPauseFraming() {
+        let packet = RustEngineBridge.shared.buildShokzPausePacket()
+        #expect(packet.count == 5)
+        #expect(packet[0] == 0x05)
+        #expect(packet[1] == 0x5A)
+        #expect(packet[2] == 0x02)
+        #expect(packet[3] == 0x01)
+        #expect(packet[4] == 0x00)
+    }
+    
+    @Test("Wire Codecs: Shokz battery packet decoding")
+    func testShokzBatteryDecoding() {
+        let data = Data([UInt8(85 | 0x80), 90, 100])
+        let battery = RustEngineBridge.shared.parseShokzBattery(data: data)
+        #expect(battery != nil)
+        #expect(battery?.left == 85)
+        #expect(battery?.right == 90)
+        #expect(battery?.caseLevel == 100)
+    }
+    
+    @Test("Wire Codecs: AirPods AAP ANC packet builder")
+    func testAirPodsAncBuilder() {
+        let packet = RustEngineBridge.shared.buildAirPodsAncPacket(mode: 0x02)
+        #expect(packet.count == 4)
+        #expect(packet[0] == 0x02) // Length LE
+        #expect(packet[2] == 0x0D) // Opcode ANC Control
+        #expect(packet[3] == 0x02) // Noise Cancellation Mode
+    }
+    
+    @Test("Wire Codecs: AirPods AAP in-ear detection decoding")
+    func testAirPodsInEarDecoding() {
+        // [Length LE (2 bytes), Opcode (0x01), Left (0x01), Right (0x01)]
+        let data = Data([0x02, 0x00, 0x01, 0x01, 0x01])
+        let inEar = RustEngineBridge.shared.parseAirPodsInEar(data: data)
+        #expect(inEar != nil)
+        #expect(inEar?.primary == 1)
+        #expect(inEar?.secondary == 1)
+    }
+    
+    @Test("Wire Codecs: Sony MDR switch audio packet builder")
+    func testSonySwitchAudioBuilder() {
+        let packet = RustEngineBridge.shared.buildSonySwitchAudioPacket(targetSlot: 0x01)
+        #expect(packet.count >= 10)
+        #expect(packet[0] == 0x0C) // Sony MDR Frame Start (0x0C)
+    }
+    
+    @Test("Wire Codecs: Generic singlepoint roaming coordination")
+    func testGenericRoamingCoordination() {
+        let canRoam = RustEngineBridge.shared.genericCanRoam(current: "MacBook", target: "iPhone")
+        #expect(canRoam == true)
+        
+        let sameRoam = RustEngineBridge.shared.genericCanRoam(current: "MacBook", target: "MacBook")
+        #expect(sameRoam == false)
+    }
+}
+

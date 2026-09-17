@@ -3,7 +3,10 @@ use std::os::raw::{c_char, c_void};
 use std::sync::Arc;
 
 use crate::arbitration::ArbitrationEngine;
+use crate::drivers::airpods::{AirPodsDriver, AncMode};
+use crate::drivers::generic::GenericDriver;
 use crate::drivers::shokz::ShokzDriver;
+use crate::drivers::sony::SonyDriver;
 use crate::models::{AppConfig, AudioDevice, EngineState, PairedDeviceInfo};
 use crate::whitelist::DeviceWhitelistManager;
 
@@ -270,3 +273,159 @@ pub unsafe extern "C" fn airflow_shokz_parse_battery(
         false
     }
 }
+
+/// Builds an Apple Accessory Protocol (AAP) ANC command.
+/// Writes the packet to out_buf (at least 4 bytes). Returns length written (4) or 0 on error.
+#[no_mangle]
+pub unsafe extern "C" fn airflow_airpods_build_anc_command(
+    mode_code: u8,
+    out_buf: *mut u8,
+    max_len: usize,
+) -> usize {
+    if out_buf.is_null() || max_len < 4 {
+        return 0;
+    }
+    let mode = match mode_code {
+        0x01 => AncMode::Off,
+        0x02 => AncMode::NoiseCancellation,
+        0x03 => AncMode::Transparency,
+        0x04 => AncMode::Adaptive,
+        _ => return 0,
+    };
+    let packet = AirPodsDriver::build_anc_command(mode);
+    std::ptr::copy_nonoverlapping(packet.as_ptr(), out_buf, packet.len());
+    packet.len()
+}
+
+/// Parses an AAP in-ear telemetry frame.
+#[no_mangle]
+pub unsafe extern "C" fn airflow_airpods_parse_in_ear(
+    data: *const u8,
+    len: usize,
+    out_left: *mut bool,
+    out_right: *mut bool,
+) -> bool {
+    if data.is_null() || len < 4 {
+        return false;
+    }
+    let slice = std::slice::from_raw_parts(data, len);
+    if let Some(status) = AirPodsDriver::parse_in_ear_status(slice) {
+        if !out_left.is_null() {
+            *out_left = status.left_in_ear;
+        }
+        if !out_right.is_null() {
+            *out_right = status.right_in_ear;
+        }
+        true
+    } else {
+        false
+    }
+}
+
+/// Parses an AAP battery telemetry frame.
+#[no_mangle]
+pub unsafe extern "C" fn airflow_airpods_parse_battery(
+    data: *const u8,
+    len: usize,
+    out_left: *mut i32,
+    out_right: *mut i32,
+    out_case: *mut i32,
+    out_charging: *mut bool,
+) -> bool {
+    if data.is_null() || len < 6 {
+        return false;
+    }
+    let slice = std::slice::from_raw_parts(data, len);
+    if let Some(battery) = AirPodsDriver::parse_battery_status(slice) {
+        if !out_left.is_null() {
+            *out_left = battery.left.map(|v| v as i32).unwrap_or(-1);
+        }
+        if !out_right.is_null() {
+            *out_right = battery.right.map(|v| v as i32).unwrap_or(-1);
+        }
+        if !out_case.is_null() {
+            *out_case = battery.case_level.map(|v| v as i32).unwrap_or(-1);
+        }
+        if !out_charging.is_null() {
+            *out_charging = battery.is_charging;
+        }
+        true
+    } else {
+        false
+    }
+}
+
+/// Builds a Sony MDR switch audio connection command packet for a 6-byte target MAC.
+#[no_mangle]
+pub unsafe extern "C" fn airflow_sony_build_switch_connection(
+    seq: u8,
+    target_mac: *const u8,
+    out_buf: *mut u8,
+    max_len: usize,
+) -> usize {
+    if target_mac.is_null() || out_buf.is_null() || max_len < 12 {
+        return 0;
+    }
+    let mut mac = [0u8; 6];
+    std::ptr::copy_nonoverlapping(target_mac, mac.as_mut_ptr(), 6);
+    let packet = SonyDriver::build_switch_connection_packet(seq, mac);
+    if max_len < packet.len() {
+        return 0;
+    }
+    std::ptr::copy_nonoverlapping(packet.as_ptr(), out_buf, packet.len());
+    packet.len()
+}
+
+/// Parses a Sony MDR battery response payload.
+#[no_mangle]
+pub unsafe extern "C" fn airflow_sony_parse_battery(
+    data: *const u8,
+    len: usize,
+    out_left: *mut i32,
+    out_right: *mut i32,
+    out_case: *mut i32,
+    out_charging: *mut bool,
+) -> bool {
+    if data.is_null() || len < 4 {
+        return false;
+    }
+    let slice = std::slice::from_raw_parts(data, len);
+    if let Some(battery) = SonyDriver::parse_battery_response(slice) {
+        if !out_left.is_null() {
+            *out_left = battery.left.map(|v| v as i32).unwrap_or(-1);
+        }
+        if !out_right.is_null() {
+            *out_right = battery.right.map(|v| v as i32).unwrap_or(-1);
+        }
+        if !out_case.is_null() {
+            *out_case = battery.case_level.map(|v| v as i32).unwrap_or(-1);
+        }
+        if !out_charging.is_null() {
+            *out_charging = battery.is_charging;
+        }
+        true
+    } else {
+        false
+    }
+}
+
+/// Coordinates single-point Bluetooth headset roaming feasibility.
+#[no_mangle]
+pub unsafe extern "C" fn airflow_generic_can_roam(
+    current_device: *const c_char,
+    target_device: *const c_char,
+) -> bool {
+    if current_device.is_null() || target_device.is_null() {
+        return false;
+    }
+    let cur = match CStr::from_ptr(current_device).to_str() {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let tgt = match CStr::from_ptr(target_device).to_str() {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    GenericDriver::can_roam_to(cur, tgt)
+}
+

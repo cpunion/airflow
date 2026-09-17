@@ -35,17 +35,22 @@ public final class PeerCommandDispatcher: @unchecked Sendable {
         print("[PeerCommandDispatcher] Active dispatch strategy set to: \(strategy.rawValue)")
     }
     
-    /// Dispatches a pause command to the specified mobile peer.
+    /// Dispatches a pause command to the specified mobile peer (or bound peer by default).
     /// Strictly verifies whitelist before executing any command.
     @discardableResult
-    public func dispatchPause(to peer: PairedDeviceInfo) -> DispatchResult {
-        // Strict Whitelist Invariant Check
-        guard whitelistManager.isWhitelisted(id: peer.id, name: peer.name) else {
-            print("[PeerCommandDispatcher] BLOCKED: Device '\(peer.name)' (\(peer.id)) is not whitelisted. Refusing command.")
+    public func dispatchPause(to peer: PairedDeviceInfo? = nil) -> DispatchResult {
+        guard let target = peer ?? whitelistManager.getBoundDevice() else {
+            print("[PeerCommandDispatcher] No bound or specified peer device to pause.")
             return .ignoredNotWhitelisted
         }
         
-        print("[PeerCommandDispatcher] Dispatching pause to whitelisted peer '\(peer.name)' via \(activeStrategy.rawValue)")
+        // Strict Whitelist Invariant Check
+        guard whitelistManager.isWhitelisted(id: target.id, name: target.name) else {
+            print("[PeerCommandDispatcher] BLOCKED: Device '\(target.name)' (\(target.id)) is not whitelisted. Refusing command.")
+            return .ignoredNotWhitelisted
+        }
+        
+        print("[PeerCommandDispatcher] Dispatching pause to whitelisted peer '\(target.name)' via \(activeStrategy.rawValue)")
         
         switch activeStrategy {
         case .headphoneGatt:

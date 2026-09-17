@@ -9,7 +9,7 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var audioMonitor: CoreAudioMonitor!
     private var mediaObserver: MediaRemoteObserver!
-    private var driver: ShokzDriver!
+    private var driver: CompositeHeadphoneDriver!
     private var whitelistManager: DeviceWhitelistManager!
     private var engine: ArbitrationEngine!
     private var menubarManager: MenubarManager!
@@ -21,7 +21,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         self.audioMonitor = CoreAudioMonitor()
         self.mediaObserver = MediaRemoteObserver()
-        self.driver = ShokzDriver(config: config)
+        
+        let shokz = ShokzDriver(config: config)
+        let airpods = AirPodsDriver()
+        let sony = SonyDriver()
+        let generic = GenericDriver()
+        self.driver = CompositeHeadphoneDriver(drivers: [shokz, airpods, sony, generic])
+        
         self.whitelistManager = DeviceWhitelistManager(config: config)
         
         self.engine = ArbitrationEngine(
@@ -80,7 +86,9 @@ public struct AirFlowApp {
         let config = AppConfig.load()
         let audioMonitor = CoreAudioMonitor()
         let mediaObserver = MediaRemoteObserver()
-        let driver = ShokzDriver(config: config)
+        let shokz = ShokzDriver(config: config)
+        let generic = GenericDriver()
+        let driver = CompositeHeadphoneDriver(drivers: [shokz, generic])
         let whitelist = DeviceWhitelistManager(config: config)
         
         let engine = ArbitrationEngine(

@@ -85,9 +85,8 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
             return false
         }
         
-        // Bestechnic BES2600 / Shokz multipoint pause command packet
-        // Frame: [0x05 (length), 0x5A (magic), 0x02 (media group), 0x01 (pause cmd), 0x00 (checksum)]
-        let pauseCommand = Data([0x05, 0x5A, 0x02, 0x01, 0x00])
+        // Bestechnic BES2600 / Shokz multipoint pause command packet (via Rust core)
+        let pauseCommand = RustEngineBridge.shared.buildShokzPausePacket()
         p.writeValue(pauseCommand, for: char, type: .withoutResponse)
         print("[ShokzDriver] Sent vendor pause frame to Shokz headphone over GATT 0xFC4C.")
         return true
@@ -175,8 +174,13 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
     // MARK: - Battery Parsing
     
     private func parseFastPairBattery(data: Data) {
-        // Fast pair battery format: [Flags/Length, Left, Right, Case]
-        // Often 3 bytes: Byte 0: left (0-100 or 0x7F if missing), Byte 1: right, Byte 2: case
+        if let battery = RustEngineBridge.shared.parseShokzBattery(data: data) {
+            self.currentBattery = battery
+            self.onBatteryChanged?(battery)
+            return
+        }
+        
+        // Fast pair battery format fallback
         guard data.count >= 3 else { return }
         
         func decodeLevel(_ byte: UInt8) -> Int? {
@@ -211,7 +215,10 @@ public final class ShokzDriver: HeadphoneDriver, @unchecked Sendable {
     public var onPairedDevicesChanged: (@Sendable ([PairedDeviceInfo]) -> Void)?
     
     public init(config: AppConfig = .load()) {}
-    public func canHandle(deviceName: String) -> Bool { return false }
+    public func canHandle(deviceName: String) -> Bool {
+        let lower = deviceName.lowercased()
+        return lower.contains("shokz") || lower.contains("opendots") || lower.contains("openfit") || lower.contains("openrun")
+    }
     public func start() {}
     public func stop() {}
     public func getBatteryStatus() -> HeadphoneBattery? { return nil }

@@ -93,6 +93,46 @@ bool airflow_shokz_parse_battery(
     bool *out_charging
 );
 
+// Apple Accessory Protocol (AAP) Decoders & Encoders
+size_t airflow_airpods_build_anc_command(
+    uint8_t mode_code,
+    uint8_t *out_buf,
+    size_t max_len
+);
+
+bool airflow_airpods_parse_in_ear(
+    const uint8_t *data,
+    size_t len,
+    bool *out_left,
+    bool *out_right
+);
+
+bool airflow_airpods_parse_battery(
+    const uint8_t *data,
+    size_t len,
+    int32_t *out_left,
+    int32_t *out_right,
+    int32_t *out_case,
+    bool *out_charging
+);
+
+// Sony MDR Protocol Decoders & Encoders
+size_t airflow_sony_build_switch_connection(
+    uint8_t seq,
+    const uint8_t *target_mac,
+    uint8_t *out_buf,
+    size_t max_len
+);
+
+bool airflow_sony_parse_battery(
+    const uint8_t *data,
+    size_t len,
+    int32_t *out_left,
+    int32_t *out_right,
+    int32_t *out_case,
+    bool *out_charging
+);
+
 #ifdef __cplusplus
 }
 #endif
