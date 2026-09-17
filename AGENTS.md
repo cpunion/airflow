@@ -1,6 +1,6 @@
 # AGENTS.md - Developer & Agent Guide
 
-> Guidelines, technical invariants, and architecture context for AI agents and human contributors working on the **AirFlow (`shokz-handoff`)** codebase.
+> Guidelines, technical invariants, and architecture context for AI agents and human contributors working on the **AirFlow** codebase.
 
 ---
 

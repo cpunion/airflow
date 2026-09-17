@@ -1,4 +1,4 @@
-# AirFlow (`shokz-handoff`)
+# AirFlow
 
 > Universal, intelligent audio handoff and device manager for wireless headphones across macOS, Linux, Windows, Android, and iOS.
 > **AirPods-like seamless switching for Shokz, Sony, Bose, and more — with zero mobile apps required on iOS.**
@@ -30,19 +30,19 @@ Standard Bluetooth Multipoint headphones (such as Shokz OpenDots 2, Sony WH/WF s
 ## 🛠 Project Structure
 
 ```
-shokz/
+AirFlow/
 ├── docs/
 │   └── DESIGN.md                 # Full architectural specification
 ├── AGENTS.md                     # Agent guide & developer instructions
 ├── Package.swift                 # Swift Package Manager manifest
 ├── Sources/
-│   └── ShokzHandoff/
+│   └── AirFlow/
 │       ├── Core/                 # Arbitration engine, state machine, whitelist, config
 │       ├── Drivers/              # Headphone drivers (Shokz, AirPods, Sony, Generic)
 │       ├── Platform/             # macOS, Linux, and Windows platform adapters
 │       └── UI/                   # Menubar status item & SwiftUI popover
 └── Tests/
-    └── ShokzHandoffTests/
+    └── AirFlowTests/
 ```
 
 ---

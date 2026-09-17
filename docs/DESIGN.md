@@ -1,4 +1,4 @@
-# Universal Headphone Handoff Manager (`AirFlow`) - Architecture & Technical Specification
+# AirFlow - Universal Headphone Handoff Manager Architecture & Specification
 
 ## 1. Executive Summary & Vision
 
@@ -9,7 +9,7 @@ Modern wireless headphones face severe fragmentation in multi-device audio hando
 3. **Single-Point Earbuds Isolation**: Millions of single-point earbuds cannot connect to two devices simultaneously, requiring tedious manual disconnect/reconnect workflows.
 
 ### 1.2 Vision & Objectives
-The goal of this project is to build **`AirFlow`** (formerly `ShokzHandoff`): a **universal, cross-platform audio roaming and device manager** that:
+The goal of this project is to build **`AirFlow`**: a **universal, cross-platform audio roaming and device manager** that:
 - **Democratizes Seamless Handoff**: Gives non-Apple headphones (Shokz, Sony, Bose, etc.) an AirPods-like, preemptive audio handoff experience.
 - **Bridges Cross-Ecosystem Gaps**: Enables Linux and Android systems to intelligently coordinate with macOS and iOS.
 - **Provides First-Class Linux/Android AirPods Support**: Integrates reverse-engineered Apple Accessory Protocol (AAP) to unlock battery status, ANC mode toggling, and ear detection on Linux.
