@@ -43,11 +43,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Start engine services
         engine.start()
         
+        // Start AirFlow Remote BLE Companion advertising
+        BleRemoteServer.shared.startAdvertising()
+        
         print("[AirFlow] Ready and running in macOS menu bar.")
     }
     
     func applicationWillTerminate(_ notification: Notification) {
         print("[AirFlow] Terminating application...")
+        BleRemoteServer.shared.stopAdvertising()
         engine?.stop()
     }
 }

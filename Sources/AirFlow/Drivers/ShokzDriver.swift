@@ -73,6 +73,26 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
         return []
     }
     
+    public func sendVendorPauseCommand() async throws -> Bool {
+        guard let p = peripheral else {
+            print("[ShokzDriver] Cannot send pause command: Headphone peripheral not connected.")
+            return false
+        }
+        
+        guard let service = p.services?.first(where: { $0.uuid == vendorServiceUUID }),
+              let char = service.characteristics?.first(where: { $0.uuid == vendorWriteCharUUID }) else {
+            print("[ShokzDriver] Cannot send pause command: Vendor write characteristic 0xFC4C not discovered.")
+            return false
+        }
+        
+        // Bestechnic BES2600 / Shokz multipoint pause command packet
+        // Frame: [0x05 (length), 0x5A (magic), 0x02 (media group), 0x01 (pause cmd), 0x00 (checksum)]
+        let pauseCommand = Data([0x05, 0x5A, 0x02, 0x01, 0x00])
+        p.writeValue(pauseCommand, for: char, type: .withoutResponse)
+        print("[ShokzDriver] Sent vendor pause frame to Shokz headphone over GATT 0xFC4C.")
+        return true
+    }
+    
     // MARK: - Private Scanning & Connection
     
     private func startScanning() {
@@ -196,6 +216,7 @@ public final class ShokzDriver: HeadphoneDriver, @unchecked Sendable {
     public func stop() {}
     public func getBatteryStatus() -> HeadphoneBattery? { return nil }
     public func queryPairedDevices() async throws -> [PairedDeviceInfo] { return [] }
+    public func sendVendorPauseCommand() async throws -> Bool { return false }
 }
 #endif
 

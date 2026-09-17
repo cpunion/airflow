@@ -134,6 +134,34 @@ public final class CoreAudioMonitor: AudioDeviceMonitorProtocol, @unchecked Send
         return outputDevices
     }
     
+    @discardableResult
+    public func setDefaultOutputDevice(deviceID: UInt32) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var targetID = AudioDeviceID(deviceID)
+        let status = AudioObjectSetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            UInt32(MemoryLayout<AudioDeviceID>.size),
+            &targetID
+        )
+        if status == noErr {
+            print("[CoreAudioMonitor] Successfully switched default output device to ID: \(deviceID)")
+            if let dev = getDevice(by: targetID) {
+                callback?(dev)
+            }
+            return true
+        } else {
+            print("[CoreAudioMonitor] Failed to set default output device ID \(deviceID), status: \(status)")
+            return false
+        }
+    }
+    
     // MARK: - Private Helpers
     
     private func getDevice(by id: AudioDeviceID) -> AudioDevice? {
@@ -207,6 +235,8 @@ public final class CoreAudioMonitor: AudioDeviceMonitorProtocol, @unchecked Send
     public func stopMonitoring() {}
     public func getCurrentDefaultDevice() -> AudioDevice? { return nil }
     public func listOutputDevices() -> [AudioDevice] { return [] }
+    @discardableResult
+    public func setDefaultOutputDevice(deviceID: UInt32) -> Bool { return false }
 }
 #endif
 
