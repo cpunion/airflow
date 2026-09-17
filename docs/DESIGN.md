@@ -241,3 +241,22 @@ stateDiagram-v2
 - [ ] Linux daemon implementation using BlueZ D-Bus, PipeWire, and MPRIS.
 - [ ] Windows daemon implementation using WASAPI, GSMTC WinRT (`GlobalSystemMediaTransportControlsSessionManager`), and modern flyout tray UI.
 - [ ] Android companion service.
+
+---
+
+## 7. Empirical Hardware Findings & Recommendations
+
+Comprehensive investigation notes, hardware packet captures, and mobile app protocol reverse-engineering are documented in:
+👉 **[TROUBLESHOOTING_AND_RECOMMENDATIONS.md](TROUBLESHOOTING_AND_RECOMMENDATIONS.md)**
+
+### Key Takeaways:
+1. **Battery Telemetry Reality**:
+   - macOS `IOBluetoothDevice` exposes `batteryPercentLeft`, `batteryPercentRight`, and `batteryPercentCase` **exclusively for Apple AirPods and Beats**. For third-party headphones (Shokz, Sony, Bose), macOS returns a single unified `batteryPercentSingle` over HFP.
+   - Charging cases do not maintain an active Bluetooth radio when earbuds are in use; case battery is relayed exclusively through dock contacts.
+   - AirFlow faithfully presents unified battery level (`Battery: XX%`) without faking identical Left/Right values.
+2. **Multipoint Pause Limitation**:
+   - Commercial TWS firmware (Shokz BES, Sony MDR) acts as an AVRCP Controller only upon physical touch gestures. The vendor BLE GATT service does **not** allow external hosts to inject AVRCP Pause into secondary connected devices.
+3. **Mobile Pause Coordination Strategy**:
+   - Because headphones will not proxy remote pause commands, AirFlow must communicate directly with the mobile peer.
+   - **Recommended Path**: iOS Shortcuts automation via local network webhook (zero app store barrier, universal media pause) or virtual Bluetooth HID Media Remote emulation.
+
