@@ -255,3 +255,36 @@ struct RustBridgeTests {
         }
     }
 }
+
+@Suite("Peer Command Dispatcher Tests")
+struct DispatcherTests {
+    @Test("Dispatcher: Enforces strict whitelisting before sending commands")
+    func testStrictWhitelistEnforcement() {
+        let driver = MockDriver()
+        let whitelist = DeviceWhitelistManager(config: AppConfig())
+        let dispatcher = PeerCommandDispatcher(whitelistManager: whitelist, driver: driver)
+        
+        let stranger = PairedDeviceInfo(id: "STRANGER-999", name: "Unauthorized Phone")
+        let result = dispatcher.dispatchPause(to: stranger)
+        #expect(result == .ignoredNotWhitelisted)
+    }
+    
+    @Test("Dispatcher: Dispatches pause to whitelisted peer via active strategy")
+    func testDispatchToWhitelistedPeer() {
+        let driver = MockDriver()
+        let whitelist = DeviceWhitelistManager(config: AppConfig())
+        let peer = PairedDeviceInfo(id: "PEER-1", name: "My iPhone")
+        whitelist.bindDevice(peer)
+        
+        let dispatcher = PeerCommandDispatcher(whitelistManager: whitelist, driver: driver)
+        
+        // Default strategy: Headphone GATT
+        let resultGatt = dispatcher.dispatchPause(to: peer)
+        #expect(resultGatt == DispatchResult.success(strategy: DispatchStrategy.headphoneGatt))
+        
+        // Switch to BLE HID
+        dispatcher.setStrategy(.bleHidMediaKey)
+        let resultHid = dispatcher.dispatchPause(to: peer)
+        #expect(resultHid == DispatchResult.success(strategy: DispatchStrategy.bleHidMediaKey))
+    }
+}
