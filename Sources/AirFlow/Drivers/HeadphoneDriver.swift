@@ -51,4 +51,14 @@ public protocol HeadphoneDriver: AnyObject, Sendable {
     
     /// Callback invoked whenever paired devices list changes.
     var onPairedDevicesChanged: (@Sendable ([PairedDeviceInfo]) -> Void)? { get set }
+    
+    /// Sends a vendor-specific pause command to the headphone firmware to pause secondary multipoint audio.
+    func sendVendorPauseCommand() async throws -> Bool
 }
+
+extension HeadphoneDriver {
+    public func sendVendorPauseCommand() async throws -> Bool {
+        return false
+    }
+}
+

@@ -18,6 +18,7 @@ public final class ArbitrationEngine: @unchecked Sendable {
     private let config: AppConfig
     public let dispatcher: PeerCommandDispatcher
     
+    public private(set) var cooldownMs: Int
     private var isHandoffEnabled: Bool = true
     private var isAirPodsBypassEnabled: Bool = true
     private var cooldownTimer: Timer?
@@ -35,8 +36,14 @@ public final class ArbitrationEngine: @unchecked Sendable {
         self.driver = driver
         self.whitelistManager = whitelistManager
         self.config = config
+        self.cooldownMs = config.arbitrationCooldownMs
         self.isAirPodsBypassEnabled = config.enableAirPodsBypass
         self.dispatcher = PeerCommandDispatcher(whitelistManager: whitelistManager, driver: driver)
+    }
+    
+    public func setCooldownMs(_ ms: Int) {
+        self.cooldownMs = max(200, ms)
+        print("[ArbitrationEngine] Arbitration cooldown updated to \(self.cooldownMs)ms")
     }
     
     public func start() {
@@ -163,7 +170,7 @@ public final class ArbitrationEngine: @unchecked Sendable {
     
     private func startCooldown() {
         cooldownTimer?.invalidate()
-        let ms = config.arbitrationCooldownMs
+        let ms = self.cooldownMs
         currentState = .cooldown(remainingMs: ms)
         
         DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(ms)) { [weak self] in

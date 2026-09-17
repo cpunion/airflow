@@ -11,13 +11,32 @@ public final class StatusPopoverViewModel: ObservableObject {
     @Published public var currentAudioDevice: AudioDevice?
     @Published public var isHandoffEnabled: Bool = true
     @Published public var isAirPodsBypassEnabled: Bool = true
+    @Published public var activeStrategy: DispatchStrategy = .headphoneGatt
+    @Published public var cooldownSeconds: Double = 1.5
+    @Published public var isLaunchAtLoginEnabled: Bool = false
+    @Published public var testFeedbackMessage: String?
+    @Published public var bleSubscribersCount: Int = 0
     
     public var onToggleHandoff: ((Bool) -> Void)?
     public var onToggleAirPodsBypass: ((Bool) -> Void)?
     public var onSelectDevice: ((AudioDevice) -> Void)?
+    public var onStrategyChanged: ((DispatchStrategy) -> Void)?
+    public var onCooldownChanged: ((Double) -> Void)?
+    public var onToggleLaunchAtLogin: ((Bool) -> Void)?
+    public var onTestPause: (() -> Void)?
     public var onQuit: (() -> Void)?
     
     public init() {}
+    
+    public func triggerTestPauseFeedback() {
+        self.testFeedbackMessage = "Pause sent!"
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            if self.testFeedbackMessage == "Pause sent!" {
+                self.testFeedbackMessage = nil
+            }
+        }
+    }
 }
 
 /// Native macOS SwiftUI Popover UI presenting battery gauges, active devices, and handoff controls.
@@ -29,12 +48,17 @@ public struct StatusPopoverView: View {
     }
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             // Header: App Title & Engine State Badge
             HStack {
-                Text("AirFlow")
-                    .font(.headline)
-                    .fontWeight(.bold)
+                HStack(spacing: 6) {
+                    Image(systemName: "airpodsmax")
+                        .font(.title3)
+                        .foregroundColor(.accentColor)
+                    Text("AirFlow")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                }
                 Spacer()
                 statusBadge
             }
@@ -46,7 +70,7 @@ public struct StatusPopoverView: View {
             
             Divider()
             
-            // Section 2: Mobile Peer Device
+            // Section 2: Mobile Peer Device & Remote Dispatch
             peerSection
             
             Divider()
@@ -56,39 +80,27 @@ public struct StatusPopoverView: View {
             
             Divider()
             
+            // Section 4: Engine Settings & Configuration
+            settingsSection
+            
+            Divider()
+            
             // Footer: Controls & Quit
-            VStack(spacing: 8) {
-                HStack {
-                    Toggle("Smart Handoff", isOn: $viewModel.isHandoffEnabled)
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .onChange(of: viewModel.isHandoffEnabled) { _, newValue in
-                            viewModel.onToggleHandoff?(newValue)
-                        }
-                    
-                    Spacer()
-                    
-                    Toggle("AirPods Bypass", isOn: $viewModel.isAirPodsBypassEnabled)
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .onChange(of: viewModel.isAirPodsBypassEnabled) { _, newValue in
-                            viewModel.onToggleAirPodsBypass?(newValue)
-                        }
-                }
-                
-                HStack {
-                    Spacer()
-                    Button("Quit") {
-                        viewModel.onQuit?()
-                    }
-                    .buttonStyle(.plain)
+            HStack {
+                Text("v1.0.0 • macOS Native")
+                    .font(.caption2)
                     .foregroundColor(.secondary)
-                    .font(.footnote)
+                Spacer()
+                Button("Quit AirFlow") {
+                    viewModel.onQuit?()
                 }
+                .buttonStyle(.plain)
+                .foregroundColor(.red)
+                .font(.caption)
             }
         }
         .padding(16)
-        .frame(width: 320)
+        .frame(width: 340)
     }
     
     // MARK: - Subviews
@@ -121,7 +133,7 @@ public struct StatusPopoverView: View {
     }
     
     private var headphoneSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: "headphones")
                     .foregroundColor(.accentColor)
@@ -129,18 +141,27 @@ public struct StatusPopoverView: View {
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .lineLimit(1)
+                Spacer()
+                if let dev = viewModel.currentAudioDevice, dev.isAirPods {
+                    Text("AirPods")
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.15))
+                        .cornerRadius(4)
+                }
             }
             
             if let battery = viewModel.battery {
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     if let l = battery.left {
-                        batteryItem(label: "L", level: l)
+                        batteryItem(label: "Left", level: l, icon: "earbuds")
                     }
                     if let r = battery.right {
-                        batteryItem(label: "R", level: r)
+                        batteryItem(label: "Right", level: r, icon: "earbuds")
                     }
                     if let c = battery.caseLevel {
-                        batteryItem(label: "Case", level: c, isCase: true)
+                        batteryItem(label: "Case", level: c, icon: "case.fill")
                     }
                 }
                 .padding(.top, 2)
@@ -148,11 +169,11 @@ public struct StatusPopoverView: View {
         }
     }
     
-    private func batteryItem(label: String, level: Int, isCase: Bool = false) -> some View {
+    private func batteryItem(label: String, level: Int, icon: String) -> some View {
         HStack(spacing: 4) {
-            Image(systemName: isCase ? "case.fill" : "earbuds")
+            Image(systemName: icon)
                 .font(.caption2)
-                .foregroundColor(.secondary)
+                .foregroundColor(batteryColor(level))
             Text("\(label):")
                 .font(.caption2)
                 .foregroundColor(.secondary)
@@ -166,35 +187,76 @@ public struct StatusPopoverView: View {
         .cornerRadius(6)
     }
     
+    private func batteryColor(_ level: Int) -> Color {
+        if level > 50 { return .green }
+        if level > 20 { return .orange }
+        return .red
+    }
+    
     private var peerSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: "iphone.gen3")
                     .foregroundColor(.accentColor)
-                Text("Linked Peer")
+                Text("Mobile Peer")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 Spacer()
-                Text(viewModel.boundPeer != nil ? "Connected" : "Not Linked")
-                    .font(.caption2)
-                    .foregroundColor(viewModel.boundPeer != nil ? .green : .secondary)
+                
+                if let feedback = viewModel.testFeedbackMessage {
+                    Text(feedback)
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                        .fontWeight(.bold)
+                } else {
+                    Button(action: {
+                        viewModel.onTestPause?()
+                        viewModel.triggerTestPauseFeedback()
+                    }) {
+                        Label("Test Pause", systemImage: "pause.fill")
+                            .font(.caption2)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.mini)
+                }
             }
             
-            if let peer = viewModel.boundPeer {
-                Text(peer.name)
-                    .font(.footnote)
-                    .foregroundColor(.primary)
-            } else {
-                Text("No target phone selected in whitelist.")
+            HStack {
+                if let peer = viewModel.boundPeer {
+                    Text(peer.name)
+                        .font(.footnote)
+                        .foregroundColor(.primary)
+                } else {
+                    Text("No target phone paired in whitelist.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Text("BLE: \(viewModel.bleSubscribersCount) linked")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
+            
+            // Dispatch strategy picker
+            Picker("Dispatch Via", selection: Binding(
+                get: { viewModel.activeStrategy },
+                set: { newStrat in
+                    viewModel.activeStrategy = newStrat
+                    viewModel.onStrategyChanged?(newStrat)
+                }
+            )) {
+                ForEach(DispatchStrategy.allCases, id: \.self) { strat in
+                    Text(strat.rawValue).tag(strat)
+                }
+            }
+            .pickerStyle(.menu)
+            .controlSize(.small)
         }
     }
     
     private var outputDeviceSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Audio Output Device")
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Audio Output Routing")
                 .font(.caption)
                 .foregroundColor(.secondary)
             
@@ -202,17 +264,79 @@ public struct StatusPopoverView: View {
                 get: { viewModel.currentAudioDevice?.id ?? 0 },
                 set: { newId in
                     if let match = viewModel.availableAudioDevices.first(where: { $0.id == newId }) {
+                        viewModel.currentAudioDevice = match
                         viewModel.onSelectDevice?(match)
                     }
                 }
             )) {
                 ForEach(viewModel.availableAudioDevices, id: \.id) { device in
-                    Text(device.name).tag(device.id)
+                    HStack {
+                        Image(systemName: device.isBluetooth ? "headphones" : "speaker.wave.2")
+                        Text(device.name)
+                    }
+                    .tag(device.id)
                 }
             }
             .labelsHidden()
+            .pickerStyle(.menu)
+            .controlSize(.small)
+        }
+    }
+    
+    private var settingsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Toggle("Smart Handoff", isOn: $viewModel.isHandoffEnabled)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .onChange(of: viewModel.isHandoffEnabled) { _, newValue in
+                        viewModel.onToggleHandoff?(newValue)
+                    }
+                
+                Spacer()
+                
+                Toggle("AirPods Bypass", isOn: $viewModel.isAirPodsBypassEnabled)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .onChange(of: viewModel.isAirPodsBypassEnabled) { _, newValue in
+                        viewModel.onToggleAirPodsBypass?(newValue)
+                    }
+            }
+            
+            HStack {
+                Toggle("Launch at Login", isOn: $viewModel.isLaunchAtLoginEnabled)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .onChange(of: viewModel.isLaunchAtLoginEnabled) { _, newValue in
+                        viewModel.onToggleLaunchAtLogin?(newValue)
+                    }
+                
+                Spacer()
+                
+                // Cooldown setting
+                HStack(spacing: 4) {
+                    Text("Cooldown:")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Picker("", selection: Binding(
+                        get: { viewModel.cooldownSeconds },
+                        set: { newSec in
+                            viewModel.cooldownSeconds = newSec
+                            viewModel.onCooldownChanged?(newSec)
+                        }
+                    )) {
+                        Text("0.5s").tag(0.5)
+                        Text("1.0s").tag(1.0)
+                        Text("1.5s").tag(1.5)
+                        Text("2.0s").tag(2.0)
+                        Text("3.0s").tag(3.0)
+                    }
+                    .pickerStyle(.menu)
+                    .controlSize(.mini)
+                    .frame(width: 70)
+                }
+            }
         }
     }
 }
 #endif
-

@@ -81,6 +81,18 @@ bool airflow_whitelist_is_allowed(
     const char *name
 );
 
+// Shokz / BES Protocol Decoders & Encoders
+const uint8_t* airflow_shokz_get_pause_packet(size_t *out_len);
+
+bool airflow_shokz_parse_battery(
+    const uint8_t *data,
+    size_t len,
+    int32_t *out_left,
+    int32_t *out_right,
+    int32_t *out_case,
+    bool *out_charging
+);
+
 #ifdef __cplusplus
 }
 #endif

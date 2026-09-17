@@ -123,6 +123,21 @@ graph TD
     Core --> UILayer
 ```
 
+### 4.1 Separation of Concerns: Rust Core vs. Platform Adapters
+
+| Concern / Capability | Responsible Layer | Implementation Details |
+| :--- | :--- | :--- |
+| **Arbitration State Machine** | **Rust Core** (`airflow-core`) | `ArbitrationEngine`: Finite state machine, timeout timers, anti-ping-pong suppression, and gatekeeper bypass logic. |
+| **Device Whitelist & Security** | **Rust Core** (`airflow-core`) | `DeviceWhitelistManager`: Target device verification, paired device table matching, strict whitelisting invariant enforcement. |
+| **Protocol Packet Codecs** | **Rust Core** (`airflow-core`) | Binary packet builders and parsers (Shokz/BES pause packet, Fast Pair battery bytes, AAP frames, Sony MDR frames). |
+| **Dispatch Strategy Selection** | **Rust Core** (`airflow-core`) | Determines whether to dispatch via Headphone GATT, BLE Remote, or Local Network. |
+| **C-ABI Export Boundary** | **Rust Core** (`airflow-core`) | Public C headers (`airflow_core.h`) enabling dynamic linking from Swift, C, or C#. |
+| **Audio Hardware Routing** | **Platform Adapters** | System HAL: CoreAudio (`AudioObjectSetPropertyData`), PipeWire/PulseAudio (`libpipewire`), WASAPI. |
+| **Media Playback Observers** | **Platform Adapters** | MediaRemote.framework (macOS), MPRIS D-Bus (Linux), GSMTC WinRT (Windows). |
+| **Bluetooth GATT Transport (I/O)** | **Platform Adapters** | CoreBluetooth (macOS), BlueZ D-Bus (Linux), WinRT GATT (Windows). Pure socket/GATT I/O without domain logic. |
+| **OS Service & Auto-Start** | **Platform Adapters** | `SMAppService` (macOS), systemd (Linux), Task Scheduler (Windows). |
+| **Native User Interface** | **Platform Adapters** | NSStatusItem/SwiftUI (macOS), Waybar/AppIndicator (Linux), WinUI 3 (Windows). |
+
 ---
 
 ## 5. Detailed Component Specifications
@@ -172,8 +187,8 @@ To prevent accidental interference with nearby devices in shared environments:
    - The app reads connected Bluetooth audio sinks from the OS.
    - Automatically selects devices matching target driver signatures (e.g., "Shokz", "OpenDots", "WH-1000XM5").
 2. **Paired Device Verification**:
-   - When supported by the headphone driver (e.g. `ShokzDriver`), the app queries the headphone over BLE to retrieve the secondary device name (e.g. `Exobrain`).
-   - The user confirms with a single click: *"Bind Exobrain as the mobile peer"*.
+   - When supported by the headphone driver (e.g. `ShokzDriver`), the app queries the headphone over BLE to retrieve the secondary device name (e.g. `My Phone`).
+   - The user confirms with a single click: *"Bind My Phone as the mobile peer"*.
 3. **Strict Whitelist Enforcement**:
    - Control commands are strictly addressed to the whitelisted device identifier. All other scanned peripherals are ignored.
 

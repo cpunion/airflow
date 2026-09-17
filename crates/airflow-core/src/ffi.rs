@@ -226,3 +226,47 @@ pub unsafe extern "C" fn airflow_whitelist_is_allowed(
 
     handle.whitelist.is_whitelisted(id_str, name_str)
 }
+
+/// Returns the pointer to the static BES/Shokz pause command packet.
+#[no_mangle]
+pub unsafe extern "C" fn airflow_shokz_get_pause_packet(out_len: *mut usize) -> *const u8 {
+    let packet = ShokzDriver::pause_packet();
+    if !out_len.is_null() {
+        *out_len = packet.len();
+    }
+    packet.as_ptr()
+}
+
+/// Parses a Google Fast Pair battery packet (at least 3 bytes).
+/// Writes left, right, case_level (0-100 or -1 if missing), and is_charging.
+#[no_mangle]
+pub unsafe extern "C" fn airflow_shokz_parse_battery(
+    data: *const u8,
+    len: usize,
+    out_left: *mut i32,
+    out_right: *mut i32,
+    out_case: *mut i32,
+    out_charging: *mut bool,
+) -> bool {
+    if data.is_null() || len < 3 {
+        return false;
+    }
+    let slice = std::slice::from_raw_parts(data, len);
+    if let Some(battery) = ShokzDriver::parse_fast_pair_battery(slice) {
+        if !out_left.is_null() {
+            *out_left = battery.left.map(|v| v as i32).unwrap_or(-1);
+        }
+        if !out_right.is_null() {
+            *out_right = battery.right.map(|v| v as i32).unwrap_or(-1);
+        }
+        if !out_case.is_null() {
+            *out_case = battery.case_level.map(|v| v as i32).unwrap_or(-1);
+        }
+        if !out_charging.is_null() {
+            *out_charging = battery.is_charging;
+        }
+        true
+    } else {
+        false
+    }
+}

@@ -13,6 +13,10 @@ public protocol AudioDeviceMonitorProtocol: AnyObject, Sendable {
     
     /// Enumerates all available audio output devices on the host.
     func listOutputDevices() -> [AudioDevice]
+    
+    /// Sets the system default audio output device by ID.
+    @discardableResult
+    func setDefaultOutputDevice(deviceID: UInt32) -> Bool
 }
 
 /// Protocol for monitoring and controlling media playback across operating systems.

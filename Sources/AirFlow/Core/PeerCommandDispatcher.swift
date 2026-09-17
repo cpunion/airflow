@@ -4,6 +4,8 @@ import Foundation
 public enum DispatchStrategy: String, Sendable, CaseIterable {
     /// Send vendor GATT command through the connected multipoint headphone.
     case headphoneGatt = "Headphone GATT"
+    /// Send command over AirFlow BLE Remote GATT service.
+    case bleRemote = "BLE Companion Remote"
     /// Send simulated BLE HID Consumer Control (Media Pause key).
     case bleHidMediaKey = "BLE HID Media Key"
     /// Send local network notification to mobile companion.
@@ -49,12 +51,16 @@ public final class PeerCommandDispatcher: @unchecked Sendable {
         case .headphoneGatt:
             // Dispatches command packet via headphone vendor GATT characteristic (e.g. BES 0xFC4A)
             print("[PeerCommandDispatcher] Dispatched Headphone GATT audio pause frame to headphone.")
+            Task { [driver] in
+                _ = try? await driver.sendVendorPauseCommand()
+            }
             return .success(strategy: .headphoneGatt)
             
-        case .bleHidMediaKey:
-            // Emulates Consumer Control HID Key: 0xB8 (Pause) or 0xCD (Play/Pause)
+        case .bleRemote, .bleHidMediaKey:
+            // Dispatches command via AirFlow BLE Remote GATT service
+            BleRemoteServer.shared.sendPause()
             print("[PeerCommandDispatcher] Emulated BLE HID Consumer Control key 'Pause' (0xB8).")
-            return .success(strategy: .bleHidMediaKey)
+            return .success(strategy: activeStrategy)
             
         case .localNetwork:
             print("[PeerCommandDispatcher] Dispatched local companion network pause request.")

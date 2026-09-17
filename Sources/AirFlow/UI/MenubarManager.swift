@@ -42,7 +42,7 @@ public final class MenubarManager: NSObject {
     
     private func setupPopover() {
         self.popover = NSPopover()
-        self.popover.contentSize = NSSize(width: 320, height: 260)
+        self.popover.contentSize = NSSize(width: 340, height: 380)
         self.popover.behavior = .transient
         self.popover.contentViewController = NSHostingController(rootView: StatusPopoverView(viewModel: viewModel))
     }
@@ -53,6 +53,10 @@ public final class MenubarManager: NSObject {
         viewModel.currentAudioDevice = audioMonitor.getCurrentDefaultDevice()
         viewModel.availableAudioDevices = audioMonitor.listOutputDevices()
         viewModel.battery = driver.getBatteryStatus()
+        viewModel.activeStrategy = engine.dispatcher.activeStrategy
+        viewModel.cooldownSeconds = Double(engine.cooldownMs) / 1000.0
+        viewModel.isLaunchAtLoginEnabled = LaunchAtLoginHelper.shared.isEnabled
+        viewModel.bleSubscribersCount = BleRemoteServer.shared.subscribedCentrals.count
         
         // Listen to engine state
         engine.onStateChanged = { [weak self] state in
@@ -79,6 +83,34 @@ public final class MenubarManager: NSObject {
             self?.engine.setAirPodsBypassEnabled(enabled)
         }
         
+        viewModel.onSelectDevice = { [weak self] device in
+            self?.audioMonitor.setDefaultOutputDevice(deviceID: device.id)
+        }
+        
+        viewModel.onStrategyChanged = { [weak self] strategy in
+            self?.engine.dispatcher.setStrategy(strategy)
+        }
+        
+        viewModel.onCooldownChanged = { [weak self] seconds in
+            self?.engine.setCooldownMs(Int(seconds * 1000.0))
+        }
+        
+        viewModel.onToggleLaunchAtLogin = { enabled in
+            LaunchAtLoginHelper.shared.isEnabled = enabled
+        }
+        
+        viewModel.onTestPause = { [weak self] in
+            guard let self = self else { return }
+            if let peer = self.whitelistManager.getBoundDevice() {
+                self.engine.dispatcher.dispatchPause(to: peer)
+            } else {
+                // Temporary mock peer for testing if whitelist is empty
+                let fallbackPeer = PairedDeviceInfo(id: "TEST-LOCAL", name: "Default Test Phone")
+                self.whitelistManager.bindDevice(fallbackPeer)
+                self.engine.dispatcher.dispatchPause(to: fallbackPeer)
+            }
+        }
+        
         viewModel.onQuit = {
             NSApp.terminate(nil)
         }
@@ -90,10 +122,17 @@ public final class MenubarManager: NSObject {
         switch state {
         case .bypassed:
             button.appearsDisabled = true
-        case .hostActive, .peerActive:
+            button.image = NSImage(systemSymbolName: "headphones", accessibilityDescription: "AirFlow Bypassed")
+        case .hostActive:
             button.appearsDisabled = false
-            button.image = NSImage(systemSymbolName: "headphones.circle.fill", accessibilityDescription: "Streaming")
-        default:
+            button.image = NSImage(systemSymbolName: "speaker.wave.2.fill", accessibilityDescription: "Mac Streaming")
+        case .peerActive:
+            button.appearsDisabled = false
+            button.image = NSImage(systemSymbolName: "iphone", accessibilityDescription: "Phone Streaming")
+        case .cooldown:
+            button.appearsDisabled = false
+            button.image = NSImage(systemSymbolName: "lock.fill", accessibilityDescription: "Cooldown")
+        case .idle:
             button.appearsDisabled = false
             button.image = NSImage(systemSymbolName: "headphones", accessibilityDescription: "AirFlow")
         }
@@ -111,9 +150,12 @@ public final class MenubarManager: NSObject {
         if popover.isShown {
             popover.performClose(nil)
         } else {
-            // Refresh devices on click
+            // Refresh dynamic state on popover open
             viewModel.availableAudioDevices = audioMonitor.listOutputDevices()
             viewModel.currentAudioDevice = audioMonitor.getCurrentDefaultDevice()
+            viewModel.boundPeer = whitelistManager.getBoundDevice()
+            viewModel.isLaunchAtLoginEnabled = LaunchAtLoginHelper.shared.isEnabled
+            viewModel.bleSubscribersCount = BleRemoteServer.shared.subscribedCentrals.count
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
     }
@@ -131,4 +173,3 @@ public final class MenubarManager: @unchecked Sendable {
     ) {}
 }
 #endif
-

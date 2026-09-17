@@ -28,6 +28,16 @@ final class MockAudioMonitor: AudioDeviceMonitorProtocol, @unchecked Sendable {
         return devicesList
     }
     
+    @discardableResult
+    func setDefaultOutputDevice(deviceID: UInt32) -> Bool {
+        if let dev = devicesList.first(where: { $0.id == deviceID }) {
+            self.currentDevice = dev
+            self.onDeviceChanged?(dev)
+            return true
+        }
+        return false
+    }
+    
     func triggerDeviceChange(_ device: AudioDevice) {
         self.currentDevice = device
         self.onDeviceChanged?(device)
@@ -96,6 +106,12 @@ final class MockDriver: HeadphoneDriver, @unchecked Sendable {
     
     func queryPairedDevices() async throws -> [PairedDeviceInfo] {
         return [PairedDeviceInfo(id: "mock-peer", name: "Mock Phone")]
+    }
+    
+    var vendorPauseCallCount = 0
+    func sendVendorPauseCommand() async throws -> Bool {
+        vendorPauseCallCount += 1
+        return true
     }
 }
 
@@ -282,9 +298,82 @@ struct DispatcherTests {
         let resultGatt = dispatcher.dispatchPause(to: peer)
         #expect(resultGatt == DispatchResult.success(strategy: DispatchStrategy.headphoneGatt))
         
-        // Switch to BLE HID
+        // Switch to BLE HID / Remote
         dispatcher.setStrategy(.bleHidMediaKey)
         let resultHid = dispatcher.dispatchPause(to: peer)
         #expect(resultHid == DispatchResult.success(strategy: DispatchStrategy.bleHidMediaKey))
+        
+        // Switch to BLE Companion Remote
+        dispatcher.setStrategy(.bleRemote)
+        let resultBle = dispatcher.dispatchPause(to: peer)
+        #expect(resultBle == DispatchResult.success(strategy: DispatchStrategy.bleRemote))
+    }
+    
+    @Test("Dispatcher: Headphone GATT strategy triggers driver pause command")
+    func testDispatchVendorGattInvokesDriver() async throws {
+        let driver = MockDriver()
+        let whitelist = DeviceWhitelistManager(config: AppConfig())
+        let peer = PairedDeviceInfo(id: "PEER-GATT", name: "Target Phone")
+        whitelist.bindDevice(peer)
+        
+        let dispatcher = PeerCommandDispatcher(whitelistManager: whitelist, driver: driver)
+        dispatcher.setStrategy(.headphoneGatt)
+        
+        let result = dispatcher.dispatchPause(to: peer)
+        #expect(result == DispatchResult.success(strategy: .headphoneGatt))
+        
+        // Wait for async task to invoke driver
+        try await Task.sleep(nanoseconds: 50_000_000)
+        #expect(driver.vendorPauseCallCount == 1)
+    }
+}
+
+@Suite("macOS Audio Routing Tests")
+struct AudioRoutingTests {
+    @Test("Audio Routing: Switches default output device and triggers notification")
+    func testAudioOutputDeviceSwitching() {
+        let audioMonitor = MockAudioMonitor()
+        let internalSpeaker = AudioDevice(id: 10, name: "MacBook Pro Speakers", isBluetooth: false)
+        let headphone = AudioDevice(id: 20, name: "Shokz OpenDots", isBluetooth: true)
+        
+        audioMonitor.devicesList = [internalSpeaker, headphone]
+        audioMonitor.currentDevice = internalSpeaker
+        
+        final class DeviceBox: @unchecked Sendable {
+            var device: AudioDevice?
+        }
+        let box = DeviceBox()
+        audioMonitor.startMonitoring { dev in
+            box.device = dev
+        }
+        
+        #expect(audioMonitor.getCurrentDefaultDevice()?.id == 10)
+        
+        // Switch to headphone
+        let success = audioMonitor.setDefaultOutputDevice(deviceID: 20)
+        #expect(success)
+        #expect(audioMonitor.getCurrentDefaultDevice()?.id == 20)
+        #expect(box.device?.id == 20)
+    }
+}
+
+@Suite("Platform Features & Companion Tests")
+struct PlatformFeatureTests {
+    @Test("Companion: BleRemoteServer starts, exposes status, and provides pause API")
+    func testBleRemoteServer() {
+        let server = BleRemoteServer.shared
+        server.startAdvertising()
+        let pauseSent = server.sendPause()
+        #expect(pauseSent)
+        let playSent = server.sendPlay()
+        #expect(playSent)
+        server.stopAdvertising()
+    }
+    
+    @Test("macOS Helper: LaunchAtLogin helper accessibility check")
+    func testLaunchAtLoginHelper() {
+        let helper = LaunchAtLoginHelper.shared
+        _ = helper.isAvailable
+        _ = helper.isEnabled
     }
 }
