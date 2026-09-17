@@ -46,7 +46,8 @@ shokz/
 │       │   ├── MacOS/
 │       │   │   ├── CoreAudioMonitor.swift  # CoreAudio default output listener
 │       │   │   └── MediaRemoteObserver.swift # Private MediaRemote.framework bridge
-│       │   └── Linux/                      # Future BlueZ & PipeWire adapters
+│       │   ├── Linux/                      # BlueZ D-Bus, PipeWire, and MPRIS adapters
+│       │   └── Windows/                    # WASAPI & WinRT GSMTC adapters
 │       └── UI/
 │           └── MenubarManager.swift        # macOS NSStatusItem & notification handler
 └── Tests/
@@ -83,6 +84,14 @@ Dynamic loading via `dlopen("/System/Library/PrivateFrameworks/MediaRemote.frame
 - `MRMediaRemoteGetNowPlayingApplicationIsPlaying(DispatchQueue, (Bool) -> Void)`: Tests if active media is playing.
 - `MRMediaRemoteSendCommand(1 /* kMRPause */, nil)`: Globally pauses media on all running apps (Chrome, Safari, Spotify, Music, etc.).
 - `MRMediaRemoteRegisterForNowPlayingNotifications(DispatchQueue)`: Registers for system-wide now-playing change events.
+
+### 3.4 Windows WinRT GSMTC & WASAPI
+- **Media Control**: `Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager` (GSMTC)
+  - `TryPauseAsync()` / `TryPlayAsync()`: System-wide media pause across Chrome, Edge, Spotify, VLC, YouTube.
+  - `PlaybackInfoChanged`: Real-time notification of active media state.
+- **Audio Endpoint Monitoring**: `IMMNotificationClient::OnDefaultDeviceChanged` via Windows Core Audio (WASAPI).
+- **Bluetooth GATT**: `Windows.Devices.Bluetooth.GenericAttributeProfile` for Fast Pair and vendor services.
+- **Reference**: `MagicPods` (established commercial AirPods implementation on Windows).
 
 ---
 

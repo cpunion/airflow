@@ -47,6 +47,17 @@ Live hardware probing on the Shokz OpenDots 2 revealed:
 - **Sony MDR Protocol** (e.g., `sony-headphones-client`): Transmitted over RFCOMM / SPP or BLE. Supports `GetPairedDevices` and `SwitchAudioConnection` commands.
 - **Bose Headphone Protocol** (e.g., `Bose-QC35-Controller`): Supports multi-point link discovery and programmatic device swapping over vendor BLE UUIDs.
 
+### 2.4 Windows Headphone Ecosystem & MagicPods Prior Art
+On Windows 10 (1903+) and Windows 11, rich media and Bluetooth primitives exist to enable full parity:
+- **[MagicPods](https://magicpods.app/)**: The de facto standard commercial application for AirPods on Windows. It uses Windows BLE APIs to sniff Apple proximity beacons, displays native popover animations, monitors individual earbud/case battery levels, and handles automatic audio routing when placing AirPods in the ear.
+- **Global System Media Transport Controls (GSMTC / SMTC)**:
+  - Accessible via the modern WinRT API `Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager`.
+  - Enables listening to active playback state across Chrome, Edge, Spotify, VLC, and Windows Media Player, and invoking `TryPauseAsync()` / `TryPlayAsync()` globally.
+- **Windows Core Audio (WASAPI)**:
+  - `IMMDeviceEnumerator` and `IMMNotificationClient::OnDefaultDeviceChanged` allow real-time notifications of default audio endpoint changes.
+- **WinRT Bluetooth GATT**:
+  - `Windows.Devices.Bluetooth.GenericAttributeProfile` natively supports reading and subscribing to vendor GATT characteristics (e.g., Shokz Fast Pair `0xFE2C` and BES `0xFC4A`).
+
 ---
 
 ## 3. Core Problem & Mechanics
@@ -126,6 +137,13 @@ Each operating system implements two fundamental interfaces:
    - Monitors active NowPlaying media sessions (ignoring transient system notifications, typing chimes, or alerts).
    - Provides `pauseGlobalMedia()` and `resumeGlobalMedia()`.
 
+| Operating System | Audio Device Monitor | Media Playback Observer | Bluetooth & GATT Stack | Native UI Shell |
+| :--- | :--- | :--- | :--- | :--- |
+| **macOS** | `CoreAudio` (`kAudioHardwarePropertyDefaultOutputDevice`) | Private `MediaRemote.framework` (`MRMediaRemoteSendCommand`) | `CoreBluetooth` / `IOBluetooth` | `NSStatusItem` + SwiftUI Popover |
+| **Linux** | `PipeWire` / `PulseAudio` (`libpipewire` / `pactl`) | `MPRIS` D-Bus (`org.mpris.MediaPlayer2.Player`) | `BlueZ` D-Bus + L2CAP Sockets | Waybar JSON / AppIndicator / GNOME |
+| **Windows** | `WASAPI` (`IMMNotificationClient::OnDefaultDeviceChanged`) | `GSMTC WinRT` (`GlobalSystemMediaTransportControlsSessionManager`) | `Windows.Devices.Bluetooth.GenericAttributeProfile` | Taskbar Tray + WinUI 3 / Modern Flyout |
+| **Android** | `AudioManager` (`AudioDeviceCallback`) | `MediaSessionManager` (`getActiveSessions`) | Android BLE `BluetoothGatt` | Material 3 Notification Tile |
+
 ### 5.2 Headphone Driver Interface
 Headphone drivers adhere to a common Swift/C/Rust protocol:
 
@@ -190,9 +208,10 @@ stateDiagram-v2
 ### Phase 1: Reference Implementation (macOS + Shokz + iPhone)
 - [x] Comprehensive requirements, research, and architecture specification in English.
 - [x] Empirical validation of CoreAudio gatekeeper, MediaRemote global control, and Shokz BLE services.
-- [ ] Core macOS daemon implementation (`AudioDeviceMonitor`, `MediaRemoteObserver`, `DeviceWhitelistManager`).
-- [ ] Implement `ShokzDriver` supporting battery telemetry and paired device querying over GATT `FC4A` / `01000100...`.
-- [ ] Menubar UI with target headphone selection, paired device confirmation, and bypass status.
+- [x] Core macOS daemon implementation (`CoreAudioMonitor`, `MediaRemoteObserver`, `DeviceWhitelistManager`, `ArbitrationEngine`).
+- [x] Implement `ShokzDriver` supporting battery telemetry and Fast Pair parsing.
+- [x] Menubar UI with battery gauges, device switcher, status badges, and AirPods bypass.
+- [x] Hardware-independent unit tests for Gatekeeper and Whitelist.
 
 ### Phase 2: Inter-Device Communication Hardening
 - [ ] Refine mobile control channel (One-time BLE bonding & low-latency command dispatch).
@@ -203,6 +222,7 @@ stateDiagram-v2
 - [ ] Implement `SonyDriver` for Sony WH/WF series based on MDR protocol.
 - [ ] Implement `GenericDriver` supporting automated disconnect/reconnect for single-point earbuds.
 
-### Phase 4: Cross-Platform Expansion
-- [ ] Linux daemon implementation using BlueZ D-Bus and PipeWire/MPRIS.
+### Phase 4: Cross-Platform Expansion (Linux & Windows)
+- [ ] Linux daemon implementation using BlueZ D-Bus, PipeWire, and MPRIS.
+- [ ] Windows daemon implementation using WASAPI, GSMTC WinRT (`GlobalSystemMediaTransportControlsSessionManager`), and modern flyout tray UI.
 - [ ] Android companion service.
