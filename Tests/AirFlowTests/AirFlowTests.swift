@@ -79,7 +79,7 @@ final class MockDriver: HeadphoneDriver, @unchecked Sendable {
     var onPairedDevicesChanged: (@Sendable ([PairedDeviceInfo]) -> Void)?
     
     func canHandle(deviceName: String) -> Bool {
-        return deviceName.lowercased().contains("shokz")
+        return deviceName.lowercased().contains("opendots") || deviceName.lowercased().contains("headphone")
     }
     
     func start() {
@@ -186,8 +186,8 @@ struct ArbitrationTests {
         #expect(engine.currentState == .idle)
     }
     
-    @Test("Target Headphone: Shokz activates arbitration engine")
-    func testShokzActivation() async throws {
+    @Test("Target Headphone: Multipoint headphone activates arbitration engine")
+    func testTargetHeadphoneActivation() async throws {
         let audioMonitor = MockAudioMonitor()
         let mediaObserver = MockMediaObserver()
         let driver = MockDriver()
@@ -204,9 +204,9 @@ struct ArbitrationTests {
         
         engine.start()
         
-        // Connect Shokz
-        let shokz = AudioDevice(id: 2, name: "OpenDots 2 by Shokz", isBluetooth: true)
-        audioMonitor.triggerDeviceChange(shokz)
+        // Connect target multipoint headphone
+        let headphone = AudioDevice(id: 2, name: "OpenDots 2", isBluetooth: true)
+        audioMonitor.triggerDeviceChange(headphone)
         
         #expect(engine.currentState == .idle)
         

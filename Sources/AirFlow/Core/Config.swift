@@ -17,7 +17,7 @@ public struct AppConfig: Sendable {
         targetPhoneName: String? = nil,
         targetPhoneUUID: String? = nil,
         targetPhoneBTAddr: String? = nil,
-        targetHeadphoneName: String = "Shokz",
+        targetHeadphoneName: String = "Wireless Headphone",
         targetHeadphoneUUID: String? = nil,
         targetHeadphoneBTAddr: String? = nil,
         arbitrationCooldownMs: Int = 1500,
@@ -48,7 +48,7 @@ public struct AppConfig: Sendable {
         let phoneUUID = get("TARGET_PHONE_UUID")
         let phoneAddr = get("TARGET_PHONE_BT_ADDR")
         
-        let headphoneName = get("TARGET_HEADPHONE_NAME") ?? "Shokz"
+        let headphoneName = get("TARGET_HEADPHONE_NAME") ?? "Wireless Headphone"
         let headphoneUUID = get("TARGET_HEADPHONE_UUID")
         let headphoneAddr = get("TARGET_HEADPHONE_BT_ADDR")
         

@@ -18,12 +18,6 @@ public struct AudioDevice: Sendable, Equatable {
         return lower.contains("airpods") || lower.contains("beats fit pro") || lower.contains("beats studio")
     }
     
-    /// Returns true if the device matches known Shokz / OpenDots naming patterns.
-    public var isShokz: Bool {
-        let lower = name.lowercased()
-        return lower.contains("shokz") || lower.contains("opendots") || lower.contains("openfit") || lower.contains("openrun")
-    }
-    
     /// Returns true if this device is considered an internal built-in speaker.
     public var isBuiltin: Bool {
         let lower = name.lowercased()

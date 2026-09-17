@@ -68,8 +68,8 @@ swift run AirFlow
 ## 🗺 Roadmap
 
 - [x] Comprehensive requirements, research & architecture specification.
-- [x] Hardware protocol verification (CoreAudio, MediaRemote, Shokz BLE GATT services).
-- [x] Pluggable `HeadphoneDriver` architecture (`ShokzDriver` supporting Fast Pair & BES).
+- [x] Hardware protocol verification (CoreAudio, MediaRemote, BLE GATT services).
+- [x] Pluggable `HeadphoneDriver` architecture (supporting Fast Pair & BES chipsets).
 - [x] Native macOS menubar app with battery gauges, device switcher, and whitelist binding.
 - [x] Hardware-independent unit test suite for Gatekeeper bypass and arbitration engine.
 - [ ] Mobile peer remote control command dispatch.
