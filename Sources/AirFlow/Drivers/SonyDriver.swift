@@ -149,4 +149,25 @@ public final class SonyDriver: NSObject, HeadphoneDriver, CBCentralManagerDelega
         }
     }
 }
+#else
+import Foundation
+
+/// Fallback stub for non-macOS environments (Linux/Windows).
+public final class SonyDriver: HeadphoneDriver, @unchecked Sendable {
+    public let driverId = "driver.sony.mdr"
+    public let brandName = "Sony MDR"
+    public var onBatteryChanged: (@Sendable (HeadphoneBattery) -> Void)?
+    public var onPairedDevicesChanged: (@Sendable ([PairedDeviceInfo]) -> Void)?
+    
+    public init() {}
+    public func canHandle(deviceName: String) -> Bool {
+        let lower = deviceName.lowercased()
+        return lower.contains("sony") || lower.contains("wh-1000") || lower.contains("wf-1000")
+    }
+    public func start() {}
+    public func stop() {}
+    public func getBatteryStatus() -> HeadphoneBattery? { return nil }
+    public func queryPairedDevices() async throws -> [PairedDeviceInfo] { return [] }
+    public func sendVendorPauseCommand() async throws -> Bool { return false }
+}
 #endif

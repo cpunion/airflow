@@ -130,4 +130,25 @@ public final class AirPodsDriver: NSObject, HeadphoneDriver, CBCentralManagerDel
         }
     }
 }
+#else
+import Foundation
+
+/// Fallback stub for non-macOS environments (Linux/Windows).
+public final class AirPodsDriver: HeadphoneDriver, @unchecked Sendable {
+    public let driverId = "driver.apple.airpods"
+    public let brandName = "Apple AirPods"
+    public var onBatteryChanged: (@Sendable (HeadphoneBattery) -> Void)?
+    public var onPairedDevicesChanged: (@Sendable ([PairedDeviceInfo]) -> Void)?
+    
+    public init() {}
+    public func canHandle(deviceName: String) -> Bool {
+        let lower = deviceName.lowercased()
+        return lower.contains("airpods") || lower.contains("beats")
+    }
+    public func start() {}
+    public func stop() {}
+    public func getBatteryStatus() -> HeadphoneBattery? { return nil }
+    public func queryPairedDevices() async throws -> [PairedDeviceInfo] { return [] }
+    public func sendVendorPauseCommand() async throws -> Bool { return false }
+}
 #endif

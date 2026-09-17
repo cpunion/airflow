@@ -419,7 +419,7 @@ struct HardwareWireCodecTests {
     
     @Test("Wire Codecs: Shokz battery packet decoding")
     func testShokzBatteryDecoding() {
-        let data = Data([85 | 0x80, 90, 100])
+        let data = Data([UInt8(85 | 0x80), 90, 100])
         let battery = RustEngineBridge.shared.parseShokzBattery(data: data)
         #expect(battery != nil)
         #expect(battery?.left == 85)
