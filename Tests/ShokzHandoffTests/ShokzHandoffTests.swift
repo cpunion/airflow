@@ -1,0 +1,184 @@
+import Foundation
+import Testing
+@testable import ShokzHandoff
+
+// MARK: - Mock Implementations
+
+final class MockAudioMonitor: AudioDeviceMonitorProtocol, @unchecked Sendable {
+    var onDeviceChanged: (@Sendable (AudioDevice) -> Void)?
+    var currentDevice: AudioDevice?
+    var devicesList: [AudioDevice] = []
+    
+    func startMonitoring(onDeviceChanged: @escaping @Sendable (AudioDevice) -> Void) {
+        self.onDeviceChanged = onDeviceChanged
+        if let dev = currentDevice {
+            onDeviceChanged(dev)
+        }
+    }
+    
+    func stopMonitoring() {
+        self.onDeviceChanged = nil
+    }
+    
+    func getCurrentDefaultDevice() -> AudioDevice? {
+        return currentDevice
+    }
+    
+    func listOutputDevices() -> [AudioDevice] {
+        return devicesList
+    }
+    
+    func triggerDeviceChange(_ device: AudioDevice) {
+        self.currentDevice = device
+        self.onDeviceChanged?(device)
+    }
+}
+
+final class MockMediaObserver: MediaPlaybackObserverProtocol, @unchecked Sendable {
+    var onPlaybackChanged: (@Sendable (Bool) -> Void)?
+    var isPlaying = false
+    var pauseCallCount = 0
+    var resumeCallCount = 0
+    
+    func startMonitoring(onPlaybackChanged: @escaping @Sendable (Bool) -> Void) {
+        self.onPlaybackChanged = onPlaybackChanged
+    }
+    
+    func stopMonitoring() {
+        self.onPlaybackChanged = nil
+    }
+    
+    func isMediaPlaying() -> Bool {
+        return isPlaying
+    }
+    
+    func pauseMedia() {
+        pauseCallCount += 1
+        isPlaying = false
+        onPlaybackChanged?(false)
+    }
+    
+    func resumeMedia() {
+        resumeCallCount += 1
+        isPlaying = true
+        onPlaybackChanged?(true)
+    }
+    
+    func triggerPlayback(playing: Bool) {
+        self.isPlaying = playing
+        self.onPlaybackChanged?(playing)
+    }
+}
+
+final class MockDriver: HeadphoneDriver, @unchecked Sendable {
+    var driverId = "mock.driver"
+    var brandName = "Mock"
+    var isStarted = false
+    var battery: HeadphoneBattery?
+    var onBatteryChanged: (@Sendable (HeadphoneBattery) -> Void)?
+    var onPairedDevicesChanged: (@Sendable ([PairedDeviceInfo]) -> Void)?
+    
+    func canHandle(deviceName: String) -> Bool {
+        return deviceName.lowercased().contains("shokz")
+    }
+    
+    func start() {
+        isStarted = true
+    }
+    
+    func stop() {
+        isStarted = false
+    }
+    
+    func getBatteryStatus() -> HeadphoneBattery? {
+        return battery
+    }
+    
+    func queryPairedDevices() async throws -> [PairedDeviceInfo] {
+        return [PairedDeviceInfo(id: "mock-peer", name: "Mock Phone")]
+    }
+}
+
+// MARK: - Unit Tests
+
+@Suite("AirFlow Arbitration & Gatekeeper Tests")
+struct ArbitrationTests {
+    
+    @Test("Gatekeeper: Automatically bypasses when AirPods are active")
+    func testAirPodsBypass() async throws {
+        let audioMonitor = MockAudioMonitor()
+        let mediaObserver = MockMediaObserver()
+        let driver = MockDriver()
+        let config = AppConfig(enableAirPodsBypass: true)
+        let whitelist = DeviceWhitelistManager(config: config)
+        
+        let engine = ArbitrationEngine(
+            audioMonitor: audioMonitor,
+            mediaObserver: mediaObserver,
+            driver: driver,
+            whitelistManager: whitelist,
+            config: config
+        )
+        
+        engine.start()
+        
+        // Trigger AirPods connection
+        let airPods = AudioDevice(id: 1, name: "AirPods Pro", isBluetooth: true)
+        audioMonitor.triggerDeviceChange(airPods)
+        
+        #expect(engine.currentState == .bypassed(reason: "AirPods Active (Apple Ecosystem Native)"))
+        
+        // Media play while AirPods active should NOT trigger arbitration
+        mediaObserver.triggerPlayback(playing: true)
+        #expect(engine.currentState == .bypassed(reason: "AirPods Active (Apple Ecosystem Native)"))
+    }
+    
+    @Test("Target Headphone: Shokz activates arbitration engine")
+    func testShokzActivation() async throws {
+        let audioMonitor = MockAudioMonitor()
+        let mediaObserver = MockMediaObserver()
+        let driver = MockDriver()
+        let config = AppConfig(arbitrationCooldownMs: 100)
+        let whitelist = DeviceWhitelistManager(config: config)
+        
+        let engine = ArbitrationEngine(
+            audioMonitor: audioMonitor,
+            mediaObserver: mediaObserver,
+            driver: driver,
+            whitelistManager: whitelist,
+            config: config
+        )
+        
+        engine.start()
+        
+        // Connect Shokz
+        let shokz = AudioDevice(id: 2, name: "OpenDots 2 by Shokz", isBluetooth: true)
+        audioMonitor.triggerDeviceChange(shokz)
+        
+        #expect(engine.currentState == .idle)
+        
+        // Start playing media
+        mediaObserver.triggerPlayback(playing: true)
+        
+        // Should immediately enter cooldown / host active
+        switch engine.currentState {
+        case .cooldown, .hostActive:
+            break
+        default:
+            Issue.record("Expected cooldown or hostActive, got: \(engine.currentState)")
+        }
+    }
+    
+    @Test("Whitelist: Enforces strict target device verification")
+    func testWhitelistVerification() async throws {
+        let config = AppConfig(
+            targetPhoneName: "Verified Phone",
+            targetPhoneUUID: "1234-5678"
+        )
+        let whitelist = DeviceWhitelistManager(config: config)
+        
+        #expect(whitelist.isWhitelisted(id: "1234-5678"))
+        #expect(whitelist.isWhitelisted(id: "random-id", name: "Verified Phone"))
+        #expect(!whitelist.isWhitelisted(id: "random-id", name: "Stranger's iPhone"))
+    }
+}
