@@ -40,7 +40,7 @@ jobs:
 
   test-windows:
     name: Windows Build & Test
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
