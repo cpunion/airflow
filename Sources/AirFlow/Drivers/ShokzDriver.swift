@@ -24,6 +24,9 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
     private let vendorServiceUUID = CBUUID(string: "FC4A")
     private let vendorWriteCharUUID = CBUUID(string: "FC4C")
     private let vendorNotifyCharUUID = CBUUID(string: "FC4B")
+    private let besCoreServiceUUID = CBUUID(string: "01000100-0000-1000-8000-009078563412")
+    private let besWriteCharUUID = CBUUID(string: "03000300-0000-1000-8000-009278563412")
+    private let besNotifyCharUUID = CBUUID(string: "02000200-0000-1000-8000-009178563412")
     
     public init(config: AppConfig = .load()) {
         self.targetConfig = config
@@ -40,6 +43,7 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
         guard !isStarted else { return }
         isStarted = true
         if centralManager.state == .poweredOn {
+            checkConnectedPeripherals()
             startScanning()
         }
     }
@@ -87,23 +91,50 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
             return false
         }
         
-        guard let service = p.services?.first(where: { $0.uuid == vendorServiceUUID }),
-              let char = service.characteristics?.first(where: { $0.uuid == vendorWriteCharUUID }) else {
-            print("[ShokzDriver] Cannot send pause command: Vendor write characteristic 0xFC4C not discovered.")
-            return false
+        let pauseCommand = RustEngineBridge.shared.buildShokzPausePacket()
+        
+        if let service = p.services?.first(where: { $0.uuid == vendorServiceUUID }),
+           let char = service.characteristics?.first(where: { $0.uuid == vendorWriteCharUUID }) {
+            p.writeValue(pauseCommand, for: char, type: .withoutResponse)
+            print("[ShokzDriver] Sent vendor pause frame to Shokz headphone over GATT 0xFC4C.")
+            return true
+        } else if let service = p.services?.first(where: { $0.uuid == besCoreServiceUUID }),
+                  let char = service.characteristics?.first(where: { $0.uuid == besWriteCharUUID }) {
+            p.writeValue(pauseCommand, for: char, type: .withoutResponse)
+            print("[ShokzDriver] Sent vendor pause frame to Shokz headphone over BES GATT 03000300.")
+            return true
         }
         
-        // Bestechnic BES2600 / Shokz multipoint pause command packet (via Rust core)
-        let pauseCommand = RustEngineBridge.shared.buildShokzPausePacket()
-        p.writeValue(pauseCommand, for: char, type: .withoutResponse)
-        print("[ShokzDriver] Sent vendor pause frame to Shokz headphone over GATT 0xFC4C.")
-        return true
+        print("[ShokzDriver] Cannot send pause command: No suitable write characteristic found.")
+        return false
     }
     
     // MARK: - Private Scanning & Connection
     
+    private func checkConnectedPeripherals() {
+        guard isStarted, centralManager.state == .poweredOn else { return }
+        if peripheral != nil { return }
+        
+        let services = [fastPairServiceUUID, vendorServiceUUID, besCoreServiceUUID]
+        let connected = centralManager.retrieveConnectedPeripherals(withServices: services)
+        for p in connected {
+            let name = p.name ?? ""
+            let idString = p.identifier.uuidString
+            let matchesConfig = (targetConfig.targetHeadphoneUUID != nil && idString == targetConfig.targetHeadphoneUUID)
+            let matchesName = canHandle(deviceName: name)
+            if matchesConfig || matchesName {
+                print("[ShokzDriver] Retrieved already-connected headphone: \(name) (\(idString))")
+                self.peripheral = p
+                p.delegate = self
+                centralManager.connect(p, options: nil)
+                return
+            }
+        }
+    }
+    
     private func startScanning() {
         guard isStarted else { return }
+        checkConnectedPeripherals()
         centralManager.scanForPeripherals(withServices: nil, options: [
             CBCentralManagerScanOptionAllowDuplicatesKey: false
         ])
@@ -113,6 +144,7 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
     
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == .poweredOn && isStarted {
+            checkConnectedPeripherals()
             startScanning()
         }
     }
@@ -135,7 +167,7 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
     
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         print("[ShokzDriver] Connected to \(peripheral.name ?? "Shokz")! Discovering services...")
-        peripheral.discoverServices([fastPairServiceUUID, vendorServiceUUID])
+        peripheral.discoverServices([fastPairServiceUUID, vendorServiceUUID, besCoreServiceUUID])
     }
     
     public func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
@@ -155,6 +187,8 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
                 peripheral.discoverCharacteristics([fastPairBatteryCharUUID], for: s)
             } else if s.uuid == vendorServiceUUID {
                 peripheral.discoverCharacteristics([vendorWriteCharUUID, vendorNotifyCharUUID], for: s)
+            } else if s.uuid == besCoreServiceUUID {
+                peripheral.discoverCharacteristics([besWriteCharUUID, besNotifyCharUUID], for: s)
             }
         }
     }
@@ -165,7 +199,7 @@ public final class ShokzDriver: NSObject, HeadphoneDriver, CBCentralManagerDeleg
             if c.uuid == fastPairBatteryCharUUID {
                 peripheral.readValue(for: c)
                 peripheral.setNotifyValue(true, for: c)
-            } else if c.uuid == vendorNotifyCharUUID {
+            } else if c.uuid == vendorNotifyCharUUID || c.uuid == besNotifyCharUUID {
                 peripheral.setNotifyValue(true, for: c)
             }
         }

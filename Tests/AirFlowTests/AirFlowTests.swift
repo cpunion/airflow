@@ -487,5 +487,26 @@ struct BluetoothBatteryTests {
         let _ = MacOSBluetoothBatteryProvider.queryBattery()
         #endif
     }
+    
+    @Test("TWS Device Identification: Correctly classifies TWS vs standard headphones")
+    func testTwsDeviceClassification() {
+        let opendots = AudioDevice(id: 1, name: "OpenDots 2 by Shokz")
+        #expect(opendots.isTws == true)
+        
+        let openfit = AudioDevice(id: 2, name: "Shokz OpenFit")
+        #expect(openfit.isTws == true)
+        
+        let airpods = AudioDevice(id: 3, name: "AirPods Pro")
+        #expect(airpods.isTws == true)
+        
+        let openrun = AudioDevice(id: 4, name: "Shokz OpenRun Pro")
+        #expect(openrun.isTws == false)
+        
+        let sonyOverEar = AudioDevice(id: 5, name: "Sony WH-1000XM4")
+        #expect(sonyOverEar.isTws == false)
+        
+        let sonyInEar = AudioDevice(id: 6, name: "Sony WF-1000XM5")
+        #expect(sonyInEar.isTws == true)
+    }
 }
 

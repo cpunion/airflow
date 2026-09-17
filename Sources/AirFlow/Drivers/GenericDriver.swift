@@ -77,8 +77,21 @@ public final class GenericDriver: NSObject, HeadphoneDriver, @unchecked Sendable
     }
     
     #if os(macOS)
+    private func checkConnectedPeripherals() {
+        guard isStarted, centralManager.state == .poweredOn else { return }
+        if peripheral != nil { return }
+        let connected = centralManager.retrieveConnectedPeripherals(withServices: [batteryServiceUUID, CBUUID(string: "180A")])
+        if let p = connected.first {
+            print("[GenericDriver] Retrieved already-connected audio device: \(p.name ?? "")")
+            self.peripheral = p
+            p.delegate = self
+            centralManager.connect(p, options: nil)
+        }
+    }
+    
     fileprivate func startScanning() {
         guard isStarted else { return }
+        checkConnectedPeripherals()
         centralManager.scanForPeripherals(withServices: [batteryServiceUUID], options: [
             CBCentralManagerScanOptionAllowDuplicatesKey: false
         ])
@@ -90,6 +103,7 @@ public final class GenericDriver: NSObject, HeadphoneDriver, @unchecked Sendable
 extension GenericDriver: CBCentralManagerDelegate, CBPeripheralDelegate {
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == .poweredOn && isStarted {
+            checkConnectedPeripherals()
             startScanning()
         }
     }
