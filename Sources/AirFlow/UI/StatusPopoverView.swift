@@ -160,31 +160,29 @@ public struct StatusPopoverView: View {
             
             if let battery = viewModel.battery {
                 HStack(spacing: 8) {
-                    if viewModel.isTwsDevice {
-                        let leftLevel = battery.left
-                        let rightLevel = battery.right
-                        let caseLevel = battery.caseLevel
-                        
+                    if let leftLevel = battery.left, let rightLevel = battery.right {
                         batteryItem(
                             label: "Left",
-                            text: leftLevel != nil ? "\(leftLevel!)%" : "--",
+                            text: "\(leftLevel)%",
                             icon: "earbuds",
                             level: leftLevel,
                             isCharging: battery.isCharging
                         )
                         batteryItem(
                             label: "Right",
-                            text: rightLevel != nil ? "\(rightLevel!)%" : "--",
+                            text: "\(rightLevel)%",
                             icon: "earbuds",
                             level: rightLevel,
                             isCharging: battery.isCharging
                         )
-                        batteryItem(
-                            label: "Case",
-                            text: caseLevel != nil ? "\(caseLevel!)%" : "--",
-                            icon: "case.fill",
-                            level: caseLevel
-                        )
+                        if let caseLevel = battery.caseLevel {
+                            batteryItem(
+                                label: "Case",
+                                text: "\(caseLevel)%",
+                                icon: "case.fill",
+                                level: caseLevel
+                            )
+                        }
                     } else {
                         let pct = battery.primaryPercentage
                         batteryItem(
@@ -194,9 +192,23 @@ public struct StatusPopoverView: View {
                             level: pct,
                             isCharging: battery.isCharging
                         )
+                        if let caseLevel = battery.caseLevel {
+                            batteryItem(
+                                label: "Case",
+                                text: "\(caseLevel)%",
+                                icon: "case.fill",
+                                level: caseLevel
+                            )
+                        }
                     }
                 }
                 .padding(.top, 2)
+                
+                if viewModel.isTwsDevice && (battery.left == nil || battery.caseLevel == nil) {
+                    Text("Note: Case & earbud sync telemetry updates when docked or opened.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
         }
     }

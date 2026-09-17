@@ -29,13 +29,13 @@ public enum MacOSBluetoothBatteryProvider {
             let caseLvl = (dev.value(forKey: "batteryPercentCase") as? Int).flatMap { $0 > 0 && $0 <= 100 ? $0 : nil }
             
             if left != nil || right != nil || single != nil || caseLvl != nil {
-                let finalLeft = left ?? single
-                let finalRight = right ?? single
+                let hasDistinctBuds = (left != nil || right != nil)
                 return HeadphoneBattery(
-                    left: finalLeft,
-                    right: finalRight,
+                    left: hasDistinctBuds ? left : nil,
+                    right: hasDistinctBuds ? right : nil,
                     caseLevel: caseLvl,
-                    isCharging: false
+                    isCharging: false,
+                    single: single
                 )
             }
         }
