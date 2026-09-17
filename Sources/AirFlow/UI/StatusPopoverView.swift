@@ -17,6 +17,10 @@ public final class StatusPopoverViewModel: ObservableObject {
     @Published public var testFeedbackMessage: String?
     @Published public var bleSubscribersCount: Int = 0
     
+    public var isTwsDevice: Bool {
+        return currentAudioDevice?.isTws ?? true
+    }
+    
     public var onToggleHandoff: ((Bool) -> Void)?
     public var onToggleAirPodsBypass: ((Bool) -> Void)?
     public var onSelectDevice: ((AudioDevice) -> Void)?
@@ -154,18 +158,40 @@ public struct StatusPopoverView: View {
             
             if let battery = viewModel.battery {
                 HStack(spacing: 8) {
-                    if let l = battery.left, let r = battery.right, l == r {
-                        batteryItem(label: "Battery", level: l, icon: "headphones")
+                    if viewModel.isTwsDevice {
+                        let leftLevel = battery.left
+                        let rightLevel = battery.right
+                        let caseLevel = battery.caseLevel
+                        
+                        batteryItem(
+                            label: "Left",
+                            text: leftLevel != nil ? "\(leftLevel!)%" : "--",
+                            icon: "earbuds",
+                            level: leftLevel,
+                            isCharging: battery.isCharging
+                        )
+                        batteryItem(
+                            label: "Right",
+                            text: rightLevel != nil ? "\(rightLevel!)%" : "--",
+                            icon: "earbuds",
+                            level: rightLevel,
+                            isCharging: battery.isCharging
+                        )
+                        batteryItem(
+                            label: "Case",
+                            text: caseLevel != nil ? "\(caseLevel!)%" : "--",
+                            icon: "case.fill",
+                            level: caseLevel
+                        )
                     } else {
-                        if let l = battery.left {
-                            batteryItem(label: "Left", level: l, icon: "earbuds")
-                        }
-                        if let r = battery.right {
-                            batteryItem(label: "Right", level: r, icon: "earbuds")
-                        }
-                    }
-                    if let c = battery.caseLevel {
-                        batteryItem(label: "Case", level: c, icon: "case.fill")
+                        let pct = battery.primaryPercentage
+                        batteryItem(
+                            label: "Battery",
+                            text: "\(pct)%",
+                            icon: "headphones",
+                            level: pct,
+                            isCharging: battery.isCharging
+                        )
                     }
                 }
                 .padding(.top, 2)
@@ -173,15 +199,21 @@ public struct StatusPopoverView: View {
         }
     }
     
-    private func batteryItem(label: String, level: Int, icon: String) -> some View {
+    private func batteryItem(
+        label: String,
+        text: String,
+        icon: String,
+        level: Int? = nil,
+        isCharging: Bool = false
+    ) -> some View {
         HStack(spacing: 4) {
-            Image(systemName: icon)
+            Image(systemName: isCharging ? "bolt.fill" : icon)
                 .font(.caption2)
-                .foregroundColor(batteryColor(level))
+                .foregroundColor(level != nil ? batteryColor(level!) : .secondary)
             Text("\(label):")
                 .font(.caption2)
                 .foregroundColor(.secondary)
-            Text("\(level)%")
+            Text(text)
                 .font(.caption)
                 .fontWeight(.medium)
         }

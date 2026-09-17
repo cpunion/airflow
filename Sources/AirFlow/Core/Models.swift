@@ -23,6 +23,19 @@ public struct AudioDevice: Sendable, Equatable {
         let lower = name.lowercased()
         return lower.contains("speaker") || lower.contains("扬声器") || lower.contains("internal")
     }
+    
+    /// Returns true if this audio device is a True Wireless Stereo (TWS) pair with separate earbuds and charging case.
+    public var isTws: Bool {
+        let lower = name.lowercased()
+        return lower.contains("opendots") ||
+               lower.contains("openfit") ||
+               lower.contains("airpods") ||
+               lower.contains("buds") ||
+               lower.contains("wf-") ||
+               lower.contains("freebuds") ||
+               lower.contains("tws") ||
+               lower.contains("ear")
+    }
 }
 
 /// Represents information about a device paired with a headphone.

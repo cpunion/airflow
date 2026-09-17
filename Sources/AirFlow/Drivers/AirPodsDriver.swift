@@ -72,8 +72,25 @@ public final class AirPodsDriver: NSObject, HeadphoneDriver, CBCentralManagerDel
     
     // MARK: - Scanning & CoreBluetooth Delegate
     
+    private func checkConnectedPeripherals() {
+        guard isStarted, centralManager.state == .poweredOn else { return }
+        if peripheral != nil { return }
+        let connected = centralManager.retrieveConnectedPeripherals(withServices: [CBUUID(string: "180F"), CBUUID(string: "180A")])
+        for p in connected {
+            let name = p.name ?? ""
+            if canHandle(deviceName: name) {
+                print("[AirPodsDriver] Retrieved already-connected Apple accessory: \(name)")
+                self.peripheral = p
+                p.delegate = self
+                centralManager.connect(p, options: nil)
+                return
+            }
+        }
+    }
+    
     private func startScanning() {
         guard isStarted else { return }
+        checkConnectedPeripherals()
         centralManager.scanForPeripherals(withServices: nil, options: [
             CBCentralManagerScanOptionAllowDuplicatesKey: false
         ])
@@ -81,6 +98,7 @@ public final class AirPodsDriver: NSObject, HeadphoneDriver, CBCentralManagerDel
     
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == .poweredOn && isStarted {
+            checkConnectedPeripherals()
             startScanning()
         }
     }
