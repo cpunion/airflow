@@ -215,7 +215,10 @@ public final class ShokzDriver: HeadphoneDriver, @unchecked Sendable {
     public var onPairedDevicesChanged: (@Sendable ([PairedDeviceInfo]) -> Void)?
     
     public init(config: AppConfig = .load()) {}
-    public func canHandle(deviceName: String) -> Bool { return false }
+    public func canHandle(deviceName: String) -> Bool {
+        let lower = deviceName.lowercased()
+        return lower.contains("shokz") || lower.contains("opendots") || lower.contains("openfit") || lower.contains("openrun")
+    }
     public func start() {}
     public func stop() {}
     public func getBatteryStatus() -> HeadphoneBattery? { return nil }
