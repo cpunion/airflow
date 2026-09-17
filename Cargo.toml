@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "crates/airflow-core",
+    "crates/airflow-cli",
+]
+resolver = "2"
