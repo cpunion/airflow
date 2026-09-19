@@ -1,6 +1,6 @@
 # Mobile compatibility and macOS / iPhone validation
 
-Updated: 2026-09-19. Status: experimental; no end-to-end iPhone pause result has been confirmed.
+Updated: 2026-09-19. Status: experimental; the first observed iPhone YouTube Pause trial failed (playback continued).
 
 ## Product scope and recommendation
 
@@ -58,7 +58,7 @@ Environment: macOS 26.2 (25C56), Apple Silicon, Swift 6.3.3. No phone pairing wa
 | Known iPhone in paired-device table | Present | Not application whitelist consent or a fresh-pair test |
 | Native scan / pairing UI | Compiles, not exercised | `--pair-ui` uses IOBluetoothUI; never-paired iPhone test pending |
 | HID channels to confirmed iPhone | Passed for this run | Control 0x11 and interrupt 0x13 opened with status 0 after correcting the probe's connection sequencing |
-| Independent Pause `0xB1` on iPhone | Sent; effect pending | User reported YouTube playing; Pause and release write completions returned 0; actual phone outcome awaits user confirmation |
+| Independent Pause `0xB1` on iPhone | Failed in the observed trial | User confirmed YouTube continued playing, with no headphones connected, despite Pause and release write completions returning 0 |
 | Paused / idle must not start playing | Pending | Separate acceptance cases |
 | Reconnect and pause again | Pending | Must verify media effect, not just channels |
 | Locked-screen / background / sleep recovery | Pending | Not inferred from foreground behavior |
@@ -70,7 +70,9 @@ Earlier ad-hoc investigation opened HID control (PSM 0x11) and interrupt (PSM 0x
 
 The user reported YouTube playing and the previously selected phone was explicitly saved in the diagnostic whitelist. The initial asynchronous open failed with `-536870212` (`0xE00002BC`, `kIOReturnError`, a generic error, not `kIOReturnExclusiveAccess`). macOS logs showed the underlying L2CAP connection succeeding after the framework's internal synchronous wait had already failed. A separate attempt with a nil delegate reached the peer but did not open the local streams; logs explicitly reported that a delegate was required.
 
-The successful probe sequence establishes the ACL first, opens each channel synchronously with its delegate already installed, and runs user commands outside the main dispatch-source callback so Bluetooth completion delivery can progress. At 12:37:49 UTC both PSMs completed with status 0. At 12:38:21 UTC the probe sent `A1-07-01` (Pause), then `A1-07-00` (release); both asynchronous write completions returned 0. No toggle report was sent. The phone's visible/audible playback result is still pending; this is not an end-to-end pass or a confirmed reconnect result.
+The successful transport sequence establishes the ACL first, opens each channel synchronously with its delegate already installed, and runs user commands outside the main dispatch-source callback so Bluetooth completion delivery can progress. At 12:37:49 UTC both PSMs completed with status 0. At 12:38:21 UTC the probe sent `A1-07-01` (Pause), then `A1-07-00` (release); both asynchronous write completions returned 0. No toggle report was sent. The user subsequently confirmed YouTube continued playing and clarified that no headphones were connected. This is a failed end-to-end Pause trial, not a confirmed reconnect result.
+
+The current diagnostic sends HID input directly from the Mac to the phone; a headphone is not part of that control path. Its absence does not invalidate this media-control test, but headphone audio transfer cannot be assessed in this setup. The failure alone does not identify whether iOS loaded the report descriptor, recognized the HID device, accepted Consumer Pause, or routed it to the player. No incoming HID control requests were observed in the probe session before the report; absence of such requests does not prove that the descriptor was rejected. Keep transport and host/player interpretation failures separate while investigating.
 
 The earlier A2DP Sink publication failed; bluetoothd reported a PSM 0x19 registration conflict. An AVRCP publication object was inconclusive because an existing system service was involved. Do not advertise option two as working, replace system services, or infer Linux / Windows failure from this macOS result. It remains lower priority.
 
