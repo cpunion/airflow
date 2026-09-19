@@ -47,6 +47,7 @@ final class Probe: NSObject, @preconcurrency IOBluetoothL2CAPChannelDelegate {
     var notification: IOBluetoothUserNotification?
     var target: IOBluetoothDevice?
     var channels: [UInt16: IOBluetoothL2CAPChannel] = [:]
+    var opening: Set<UInt16> = []
     var ready: Set<UInt16> = []
     var pending: [Int: (NSMutableData, String)] = [:]
     var serial = 0
@@ -162,7 +163,16 @@ final class Probe: NSObject, @preconcurrency IOBluetoothL2CAPChannelDelegate {
         keyState = "released"
         connectionGeneration += 1
         let generation = connectionGeneration
+        // On macOS 26, the asynchronous path for a disconnected ACL internally
+        // waits synchronously inside its completion callback and can fail before
+        // the successful L2CAP callback arrives. Establish the ACL first.
+        if !target.isConnected() {
+            let status = target.openConnection()
+            log("Baseband open status=\(status)")
+            guard status == 0 else { return }
+        }
         open(target, psm: 0x11)
+        if ready.contains(0x11) { open(target, psm: 0x13) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [self] in
             if connectionGeneration == generation && ready != [0x11, 0x13] {
                 log("Connection timed out before both channels opened")
@@ -172,10 +182,17 @@ final class Probe: NSObject, @preconcurrency IOBluetoothL2CAPChannelDelegate {
     }
 
     func open(_ device: IOBluetoothDevice, psm: UInt16) {
+        opening.insert(psm)
+        defer { opening.remove(psm) }
         var channel: IOBluetoothL2CAPChannel?
-        let status = device.openL2CAPChannelAsync(&channel, withPSM: psm, delegate: self)
-        log("Open requested PSM=\(String(psm, radix: 16)) status=\(status)")
-        if status == 0, let channel { channels[psm] = channel }
+        // A delegate is required during open, or IOBluetooth never opens the
+        // underlying streams even when the peer accepts the L2CAP channel.
+        let status = device.openL2CAPChannelSync(&channel, withPSM: psm, delegate: self)
+        log("Synchronous open PSM=\(String(psm, radix: 16)) status=\(status)")
+        guard status == 0, let channel else { disconnect(); return }
+        channels[psm] = channel
+        channel.setDelegate(self)
+        if !ready.contains(psm) { l2capChannelOpenComplete(channel, status: status) }
     }
 
     @objc func incoming(_ notice: IOBluetoothUserNotification, channel: IOBluetoothL2CAPChannel) {
@@ -188,12 +205,12 @@ final class Probe: NSObject, @preconcurrency IOBluetoothL2CAPChannelDelegate {
     }
 
     func l2capChannelOpenComplete(_ channel: IOBluetoothL2CAPChannel, status: IOReturn) {
-        guard allowed(), channels[channel.psm] === channel else { channel.close(); return }
+        guard allowed(), normalized(channel.device.addressString ?? "") == normalized(target?.addressString ?? ""),
+              channels[channel.psm] === channel || opening.contains(channel.psm) else { channel.close(); return }
         log("Open completed PSM=\(String(channel.psm, radix: 16)) status=\(status)")
         guard status == 0 else { disconnect(); return }
         channels[channel.psm] = channel
         ready.insert(channel.psm)
-        if channel.psm == 0x11, channels[0x13] == nil, let target { open(target, psm: 0x13) }
         if ready == [0x11, 0x13] {
             readyAt = Date().addingTimeInterval(5)
             log("Both channels open; wait 5 seconds for peer setup. Media outcome remains UNKNOWN")
@@ -313,7 +330,13 @@ final class Probe: NSObject, @preconcurrency IOBluetoothL2CAPChannelDelegate {
     func run() {
         source = DispatchSource.makeReadSource(fileDescriptor: STDIN_FILENO, queue: .main)
         source?.setEventHandler { [self] in
-            if let line = readLine() { command(line) } else { cleanup(); exit(0) }
+            if let line = readLine() {
+                // Bluetooth synchronous calls must not nest inside a main GCD
+                // callback: their completion delivery also needs the main queue.
+                RunLoop.main.perform(inModes: [.default]) { [self] in
+                    MainActor.assumeIsolated { command(line) }
+                }
+            } else { cleanup(); exit(0) }
         }
         source?.resume()
         for number in [SIGINT, SIGTERM] {

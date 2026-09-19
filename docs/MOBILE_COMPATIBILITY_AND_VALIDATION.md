@@ -45,7 +45,7 @@ Keep the iOS companion optional unless a specific, tested accessory capability j
 
 ## Evidence on this Mac
 
-Environment: macOS 26.2 (25C56), Apple Silicon, Swift 6.3.3. No phone pairing was erased; no mobile media command was sent during the new diagnostic runs below.
+Environment: macOS 26.2 (25C56), Apple Silicon, Swift 6.3.3. No phone pairing was erased. Initial preflight runs sent no mobile media commands; the later user-assisted YouTube trial below sent one independent Pause and its release.
 
 | Check | Result | Evidence / limitation |
 | --- | --- | --- |
@@ -57,13 +57,20 @@ Environment: macOS 26.2 (25C56), Apple Silicon, Swift 6.3.3. No phone pairing wa
 | Exact-target safety | Passed locally | `pause`, `toggle-confirmed`, and `connect` refused before authorization; malformed address refused; no packets queued |
 | Known iPhone in paired-device table | Present | Not application whitelist consent or a fresh-pair test |
 | Native scan / pairing UI | Compiles, not exercised | `--pair-ui` uses IOBluetoothUI; never-paired iPhone test pending |
-| Independent Pause `0xB1` on iPhone | Pending | Requires selected target and actual player-state observations |
+| HID channels to confirmed iPhone | Passed for this run | Control 0x11 and interrupt 0x13 opened with status 0 after correcting the probe's connection sequencing |
+| Independent Pause `0xB1` on iPhone | Sent; effect pending | User reported YouTube playing; Pause and release write completions returned 0; actual phone outcome awaits user confirmation |
 | Paused / idle must not start playing | Pending | Separate acceptance cases |
 | Reconnect and pause again | Pending | Must verify media effect, not just channels |
 | Locked-screen / background / sleep recovery | Pending | Not inferred from foreground behavior |
 | Actual multipoint headphone transfer | Pending | Pause or channel success does not prove audible transfer |
 
 Earlier ad-hoc investigation opened HID control (PSM 0x11) and interrupt (PSM 0x13) channels to the already-paired iPhone and returned success for a Play/Pause write. Actual playback was not confirmed. Those results are transport-only, not a pass for this probe's new Pause descriptor.
+
+### User-assisted YouTube trial (2026-09-19)
+
+The user reported YouTube playing and the previously selected phone was explicitly saved in the diagnostic whitelist. The initial asynchronous open failed with `-536870212` (`0xE00002BC`, `kIOReturnError`, a generic error, not `kIOReturnExclusiveAccess`). macOS logs showed the underlying L2CAP connection succeeding after the framework's internal synchronous wait had already failed. A separate attempt with a nil delegate reached the peer but did not open the local streams; logs explicitly reported that a delegate was required.
+
+The successful probe sequence establishes the ACL first, opens each channel synchronously with its delegate already installed, and runs user commands outside the main dispatch-source callback so Bluetooth completion delivery can progress. At 12:37:49 UTC both PSMs completed with status 0. At 12:38:21 UTC the probe sent `A1-07-01` (Pause), then `A1-07-00` (release); both asynchronous write completions returned 0. No toggle report was sent. The phone's visible/audible playback result is still pending; this is not an end-to-end pass or a confirmed reconnect result.
 
 The earlier A2DP Sink publication failed; bluetoothd reported a PSM 0x19 registration conflict. An AVRCP publication object was inconclusive because an existing system service was involved. Do not advertise option two as working, replace system services, or infer Linux / Windows failure from this macOS result. It remains lower priority.
 
