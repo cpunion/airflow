@@ -12,6 +12,10 @@ let package = Package(
         .executable(
             name: "AirFlow",
             targets: ["AirFlowCLI"]
+        ),
+        .executable(
+            name: "AirFlowHIDProbe",
+            targets: ["AirFlowHIDProbe"]
         )
     ],
     targets: [
@@ -20,6 +24,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "AirFlowCLI",
+            dependencies: ["AirFlow"]
+        ),
+        .executableTarget(
+            name: "AirFlowHIDProbe",
             dependencies: ["AirFlow"]
         ),
         .testTarget(

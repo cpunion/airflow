@@ -2,6 +2,14 @@
 
 This document records the empirical findings, hardware diagnostic results, protocol analysis of Shokz / Bestechnic hardware, and architectural recommendations for cross-platform audio roaming in **AirFlow**.
 
+> Historical investigation, not a compatibility guarantee. Mobile-control
+> recommendations below are superseded by [Mobile compatibility and validation](MOBILE_COMPATIBILITY_AND_VALIDATION.md).
+> The previous unattended Shortcut / webhook / PWA descriptions were not
+> established working implementations. A companion connection does not grant
+> iOS cross-app media control, and Play/Pause is unsafe as an unknown-state
+> automatic pause fallback. Vendor-protocol conclusions are limited to tested
+> models, firmware, and commands, not proof about every possible device API.
+
 ---
 
 ## 1. Battery Telemetry Investigation
