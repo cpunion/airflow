@@ -1,6 +1,6 @@
 # Mobile compatibility and macOS / iPhone validation
 
-Updated: 2026-09-19. Status: experimental; the first observed iPhone YouTube Pause trial failed (playback continued).
+Updated: 2026-09-19. Status: experimental; both observed iPhone YouTube Pause and Play/Pause trials failed (playback continued).
 
 ## Product scope and recommendation
 
@@ -45,7 +45,7 @@ Keep the iOS companion optional unless a specific, tested accessory capability j
 
 ## Evidence on this Mac
 
-Environment: macOS 26.2 (25C56), Apple Silicon, Swift 6.3.3. No phone pairing was erased. Initial preflight runs sent no mobile media commands; the later user-assisted YouTube trial below sent one independent Pause and its release.
+Environment: macOS 26.2 (25C56), Apple Silicon, Swift 6.3.3; the selected iPhone reports iOS 27.0 (24A437). No phone pairing was erased. Initial preflight runs sent no mobile media commands; later user-assisted YouTube trials sent one independent Pause and one explicitly confirmed Play/Pause comparison, each followed by release.
 
 | Check | Result | Evidence / limitation |
 | --- | --- | --- |
@@ -58,7 +58,8 @@ Environment: macOS 26.2 (25C56), Apple Silicon, Swift 6.3.3. No phone pairing wa
 | Known iPhone in paired-device table | Present | Not application whitelist consent or a fresh-pair test |
 | Native scan / pairing UI | Compiles, not exercised | `--pair-ui` uses IOBluetoothUI; never-paired iPhone test pending |
 | HID channels to confirmed iPhone | Passed for this run | Control 0x11 and interrupt 0x13 opened with status 0 after correcting the probe's connection sequencing |
-| Independent Pause `0xB1` on iPhone | Failed in the observed trial | User confirmed YouTube continued playing, with no headphones connected, despite Pause and release write completions returning 0 |
+| Independent Pause `0xB1` on iPhone | Failed in the observed trial | User confirmed the native YouTube iOS app continued playing, with no headphones connected, despite Pause and release write completions returning 0 |
+| Manual Play/Pause `0xCD` comparison | Failed in the observed trial | User confirmed playback before the one-shot comparison and reported it continued afterward; press and release write completions returned 0 |
 | Paused / idle must not start playing | Pending | Separate acceptance cases |
 | Reconnect and pause again | Pending | Must verify media effect, not just channels |
 | Locked-screen / background / sleep recovery | Pending | Not inferred from foreground behavior |
@@ -68,11 +69,15 @@ Earlier ad-hoc investigation opened HID control (PSM 0x11) and interrupt (PSM 0x
 
 ### User-assisted YouTube trial (2026-09-19)
 
-The user reported YouTube playing and the previously selected phone was explicitly saved in the diagnostic whitelist. The initial asynchronous open failed with `-536870212` (`0xE00002BC`, `kIOReturnError`, a generic error, not `kIOReturnExclusiveAccess`). macOS logs showed the underlying L2CAP connection succeeding after the framework's internal synchronous wait had already failed. A separate attempt with a nil delegate reached the peer but did not open the local streams; logs explicitly reported that a delegate was required.
+The user reported YouTube playing and later confirmed it was the native iOS app, not a browser page. The previously selected phone was explicitly saved in the diagnostic whitelist. The initial asynchronous open failed with `-536870212` (`0xE00002BC`, `kIOReturnError`, a generic error, not `kIOReturnExclusiveAccess`). macOS logs showed the underlying L2CAP connection succeeding after the framework's internal synchronous wait had already failed. A separate attempt with a nil delegate reached the peer but did not open the local streams; logs explicitly reported that a delegate was required.
 
-The successful transport sequence establishes the ACL first, opens each channel synchronously with its delegate already installed, and runs user commands outside the main dispatch-source callback so Bluetooth completion delivery can progress. At 12:37:49 UTC both PSMs completed with status 0. At 12:38:21 UTC the probe sent `A1-07-01` (Pause), then `A1-07-00` (release); both asynchronous write completions returned 0. No toggle report was sent. The user subsequently confirmed YouTube continued playing and clarified that no headphones were connected. This is a failed end-to-end Pause trial, not a confirmed reconnect result.
+The successful transport sequence establishes the ACL first, opens each channel synchronously with its delegate already installed, and runs user commands outside the main dispatch-source callback so Bluetooth completion delivery can progress. At 12:37:49 UTC both PSMs completed with status 0. At 12:38:21 UTC the probe sent `A1-07-01` (Pause), then `A1-07-00` (release); both asynchronous write completions returned 0. The user subsequently confirmed YouTube continued playing and clarified that no headphones were connected. This is a failed end-to-end Pause trial, not a confirmed reconnect result.
 
-The current diagnostic sends HID input directly from the Mac to the phone; a headphone is not part of that control path. Its absence does not invalidate this media-control test, but headphone audio transfer cannot be assessed in this setup. The failure alone does not identify whether iOS loaded the report descriptor, recognized the HID device, accepted Consumer Pause, or routed it to the player. No incoming HID control requests were observed in the probe session before the report; absence of such requests does not prove that the descriptor was rejected. Keep transport and host/player interpretation failures separate while investigating.
+After explicit confirmation that the native YouTube app was still playing and ready for one comparison, the probe sent `A1-07-02` (Play/Pause) at 12:48:47 UTC, followed by `A1-07-00` (release). Both writes completed with status 0, but the user again reported continued playback. This makes unsupported Consumer Pause alone an insufficient explanation; no specific root cause is established.
+
+The current diagnostic sends HID input directly from the Mac to the phone; a headphone is not part of that control path. Its absence does not invalidate this media-control test, but headphone audio transfer cannot be assessed in this setup. The failure alone does not identify whether iOS loaded the report descriptor, recognized the HID device, accepted the usages, or routed them to the player. No incoming HID control requests were observed before the test reports. At 12:49:16 UTC, the phone sent HID_CONTROL Suspend (`13`) on PSM 0x11, which the probe honored. This establishes received HID control traffic but does not establish descriptor acceptance or input-report interpretation. Do not describe the entire link as unresponsive.
+
+Read-only CoreDevice inspection reached the selected phone over its existing local-network developer connection and obtained the OS build above. A narrowly filtered `idevicesyslog` attempt could not access that phone through its network-device interface; the attempt was stopped. No phone syslog, full sysdiagnose, app installation, or pairing reset was performed. A stale HID descriptor/identity remains a hypothesis, not a diagnosis. Testing a genuinely fresh HID pairing requires a never-paired phone or explicit approval to forget and re-pair the existing Mac-phone Bluetooth relationship; headphone pairings must remain untouched.
 
 The earlier A2DP Sink publication failed; bluetoothd reported a PSM 0x19 registration conflict. An AVRCP publication object was inconclusive because an existing system service was involved. Do not advertise option two as working, replace system services, or infer Linux / Windows failure from this macOS result. It remains lower priority.
 
