@@ -1,7 +1,11 @@
 # AirFlow
 
 > Universal, intelligent audio handoff and device manager for wireless headphones across macOS, Linux, Windows, Android, and iOS.
-> **AirPods-like seamless switching for Shokz, Sony, Bose, and more — with zero mobile apps required on iOS.**
+> **Goal: seamless switching for third-party headphones, with compatibility tiers based on tested device combinations.**
+
+Current status: experimental. App-free iPhone pause and bidirectional handoff are
+not yet verified end to end. See the [compatibility and validation record](docs/MOBILE_COMPATIBILITY_AND_VALIDATION.md)
+for measured results, mobile companion limits, and outstanding phone tests.
 
 ---
 
@@ -11,7 +15,7 @@ Standard Bluetooth Multipoint headphones (such as Shokz OpenDots 2, Sony WH/WF s
 - If your phone is playing music, video on your computer has no audio until you pull out your phone and manually pause.
 - If your computer is playing video, your phone cannot preempt it.
 
-**AirFlow** eliminates this frustration by providing an intelligent, bidirectional arbitration layer between your computer and mobile devices:
+**AirFlow** aims to address this with a bidirectional arbitration layer between your computer and mobile devices. The following describes target behavior, not uniformly available capabilities:
 1. **Play on Computer ➔ Phone Automatically Pauses ➔ Headphone output transitions seamlessly**.
 2. **Play on Phone ➔ Computer Automatically Pauses ➔ Headphone output transitions seamlessly**.
 3. **Gatekeeper Bypass**: Automatically detects native AirPods and gracefully steps aside, preventing conflicts with Apple's built-in ecosystem handoff.
@@ -22,6 +26,7 @@ Standard Bluetooth Multipoint headphones (such as Shokz OpenDots 2, Sony WH/WF s
 
 ## 📚 Technical Documentation
 
+- **[docs/MOBILE_COMPATIBILITY_AND_VALIDATION.md](docs/MOBILE_COMPATIBILITY_AND_VALIDATION.md)**: Compatibility tiers, mobile app capabilities, and reproducible macOS / iPhone verification.
 - **[docs/DESIGN.md](docs/DESIGN.md)**: Complete system specification, state machine diagrams, protocol reverse-engineering analysis (Shokz BES, Apple AAP, Sony MDR, MagicPods), and cross-platform architecture.
 - **[docs/TROUBLESHOOTING_AND_RECOMMENDATIONS.md](docs/TROUBLESHOOTING_AND_RECOMMENDATIONS.md)**: Hardware diagnostic findings, Shokz battery & mobile app reverse-engineering report, and architectural recommendations.
 - **[AGENTS.md](AGENTS.md)**: Developer & AI Agent guide detailing repository structure, build guidelines, and Bluetooth protocol implementations.

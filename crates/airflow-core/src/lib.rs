@@ -2,6 +2,7 @@ pub mod arbitration;
 pub mod dispatch;
 pub mod drivers;
 pub mod ffi;
+pub mod hid;
 pub mod models;
 pub mod whitelist;
 
